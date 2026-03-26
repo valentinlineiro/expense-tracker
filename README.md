@@ -1,59 +1,47 @@
-# ExpenseTracker
+# Gastos
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.22.
+Personal expense tracker. Offline-first, no account, no backend — all data lives on your device.
 
-## Development server
+## Features
 
-To start a local development server, run:
+- **Today view** — daily balance at a glance, add transactions with one tap
+- **Month view** — navigate months, transactions grouped by day with per-day balances
+- **Stats** — spending by category (doughnut chart) and 6-month trend (bar chart)
+- **Settings** — custom currency symbol, add/delete categories, export all data to CSV
+- **PWA** — installable, works fully offline after first load
+- **Privacy by default** — zero network requests, zero analytics, zero tracking
 
-```bash
-ng serve
-```
+## Stack
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+| Layer | Choice |
+|---|---|
+| Framework | Angular 19 (standalone components, Signals) |
+| Storage | Dexie.js (IndexedDB) |
+| Charts | Chart.js |
+| Styles | Tailwind CSS v4 + inline styles |
+| PWA | @angular/pwa |
+| Deploy | GitHub Pages |
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
+## Development
 
 ```bash
-ng build
+npm install
+npx @angular/cli@19 serve
+# → http://localhost:4200
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+## Build
 
 ```bash
-ng test
+npx @angular/cli@19 build
 ```
 
-## Running end-to-end tests
+## Deploy
 
-For end-to-end (e2e) testing, run:
+Deployments to GitHub Pages are automatic on every push to `main` via GitHub Actions.
+
+To deploy manually:
 
 ```bash
-ng e2e
+npx @angular/cli@19 deploy
 ```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
