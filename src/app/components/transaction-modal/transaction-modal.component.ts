@@ -51,7 +51,8 @@ import { today, toDateStr } from '../../core/utils';
             <span style="font-family:'Syne',sans-serif;font-size:32px;color:var(--text-muted);">{{ store.currencySymbol() }}</span>
             <input
               type="number"
-              [(ngModel)]="amountStr"
+              [ngModel]="amountStr()"
+              (ngModelChange)="amountStr.set($event)"
               placeholder="0.00"
               min="0"
               step="0.01"
@@ -127,19 +128,8 @@ import { today, toDateStr } from '../../core/utils';
         <button
           (click)="save()"
           [disabled]="!canSave()"
-          style="
-            width:100%;
-            padding:16px;
-            border-radius:12px;
-            border:none;
-            font-family:'Syne',sans-serif;
-            font-size:16px;
-            font-weight:600;
-            cursor:pointer;
-            background:var(--accent);
-            color:#fff;
-            opacity: {{ canSave() ? 1 : 0.4 }};
-          "
+          [style.opacity]="canSave() ? 1 : 0.4"
+          style="width:100%;padding:16px;border-radius:12px;border:none;font-family:'Syne',sans-serif;font-size:16px;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;"
         >{{ editTx() ? 'Guardar cambios' : 'Agregar' }}</button>
       </div>
     </div>
@@ -155,7 +145,7 @@ export class TransactionModalComponent implements OnInit {
   saved = output<void>();
 
   type = signal<'expense' | 'income'>('expense');
-  amountStr = '';
+  amountStr = signal('');
   categoryId = signal('');
   date = today();
   note = '';
@@ -165,7 +155,7 @@ export class TransactionModalComponent implements OnInit {
   );
 
   canSave = computed(() => {
-    const amt = parseFloat(this.amountStr);
+    const amt = parseFloat(this.amountStr());
     return !isNaN(amt) && amt > 0 && !!this.categoryId();
   });
 
@@ -173,7 +163,7 @@ export class TransactionModalComponent implements OnInit {
     const tx = this.editTx();
     if (tx) {
       this.type.set(tx.type);
-      this.amountStr = String(tx.amount);
+      this.amountStr.set(String(tx.amount));
       this.categoryId.set(tx.categoryId);
       this.date = tx.date;
       this.note = tx.note;
@@ -186,7 +176,7 @@ export class TransactionModalComponent implements OnInit {
 
   async save(): Promise<void> {
     if (!this.canSave()) return;
-    const amount = parseFloat(this.amountStr);
+    const amount = parseFloat(this.amountStr());
     const tx = this.editTx();
 
     if (tx?.id != null) {
