@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit, AfterViewInit, ElementRef, ViewChild, effect } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
 import { StoreService } from '../../core/store.service';
 import { Transaction } from '../../core/db';
 import { fmtAmount, fmtMonthShort, currentYearMonth } from '../../core/utils';
@@ -26,6 +26,40 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
       }
 
       @if (!loading() && totalTransactions() > 0) {
+
+        <!-- KPI cards -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+          <!-- Savings rate -->
+          <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;">
+            <p style="color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">Ahorro</p>
+            @if (savingsRate() !== null) {
+              <div class="mono" [style]="'font-size:16px;font-weight:600;color:' + (savingsRate()! >= 0 ? 'var(--income)' : 'var(--expense)') + ';'">
+                {{ savingsRate() }}%
+              </div>
+            } @else {
+              <div class="mono" style="font-size:16px;font-weight:600;color:var(--text-muted);">—</div>
+            }
+          </div>
+          <!-- Avg daily spend -->
+          <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;">
+            <p style="color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">Media/día</p>
+            <div class="mono" style="font-size:16px;font-weight:600;color:var(--text);">
+              {{ fmtAmount(avgDailySpend(), store.currencySymbol()) }}
+            </div>
+          </div>
+          <!-- Month-over-month -->
+          <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;">
+            <p style="color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">vs. anterior</p>
+            @if (momDelta() !== null) {
+              <div class="mono" [style]="'font-size:16px;font-weight:600;color:' + (momDelta()! <= 0 ? 'var(--income)' : 'var(--expense)') + ';'">
+                {{ momDelta()! > 0 ? '+' : '' }}{{ momDelta() }}%
+              </div>
+            } @else {
+              <div class="mono" style="font-size:16px;font-weight:600;color:var(--text-muted);">—</div>
+            }
+          </div>
+        </div>
+
         <!-- Doughnut -->
         <div style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:20px;">
           <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">Gastos por categoría — este mes</p>
@@ -49,15 +83,23 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
           }
         </div>
 
-        <!-- Bar chart -->
+        <!-- Bar chart: income vs expense -->
         <div style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:20px;">
-          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">Tendencia mensual</p>
+          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 4px;">Tendencia — 6 meses</p>
+          <div style="display:flex;gap:16px;margin-bottom:14px;">
+            <span style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:5px;">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#7c6df0;"></span>Gastos
+            </span>
+            <span style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:5px;">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#4dff91;"></span>Ingresos
+            </span>
+          </div>
           <canvas #barCanvas style="max-height:180px;"></canvas>
         </div>
 
         <!-- Top 3 categories -->
         @if (top3().length > 0) {
-          <div style="background:var(--surface);border-radius:16px;padding:20px;">
+          <div style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:20px;">
             <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">Top categorías del mes</p>
             @for (item of top3(); track item.label; let i = $index) {
               <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
@@ -72,6 +114,20 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
             }
           </div>
         }
+
+        <!-- Insights -->
+        @if (insights().length > 0) {
+          <div style="background:var(--surface);border-radius:16px;padding:20px;">
+            <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 14px;">Perspectivas</p>
+            @for (insight of insights(); track insight.text) {
+              <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;">
+                <span style="font-size:18px;flex-shrink:0;line-height:1.4;">{{ insight.icon }}</span>
+                <span style="font-size:13px;line-height:1.5;color:var(--text);">{{ insight.text }}</span>
+              </div>
+            }
+          </div>
+        }
+
       }
     </div>
   `,
@@ -131,20 +187,90 @@ export class StatsComponent implements OnInit, AfterViewInit {
     return result;
   });
 
-  barData = computed(() => {
+  barData = computed(() => this.monthlyDataFor('expense'));
+
+  barIncomeData = computed(() => this.monthlyDataFor('income'));
+
+  private monthlyDataFor(type: 'expense' | 'income'): number[] {
     const txs = this.last6Transactions();
     const { year, month } = currentYearMonth();
     return Array.from({ length: 6 }, (_, i) => {
       let m = month - (5 - i);
       let y = year;
       if (m <= 0) { m += 12; y -= 1; }
-      const pad = (n: number) => String(n).padStart(2, '0');
-      const prefix = `${y}-${pad(m)}`;
+      const prefix = `${y}-${String(m).padStart(2, '0')}`;
       return txs
-        .filter(t => t.type === 'expense' && t.date.startsWith(prefix))
+        .filter(t => t.type === type && t.date.startsWith(prefix))
         .reduce((s, t) => s + t.amount, 0);
     });
+  }
+
+  // ── KPI computed ─────────────────────────────────────────────────────────────
+
+  savingsRate = computed(() => {
+    const income = this.monthlyTransactions()
+      .filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    if (income === 0) return null;
+    const expense = this.monthlyTransactions()
+      .filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    return Math.round(((income - expense) / income) * 100);
   });
+
+  avgDailySpend = computed(() => {
+    const expense = this.monthlyTransactions()
+      .filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    const dayOfMonth = new Date().getDate();
+    return dayOfMonth > 0 ? expense / dayOfMonth : 0;
+  });
+
+  momDelta = computed(() => {
+    const { year, month } = currentYearMonth();
+    let prevM = month - 1, prevY = year;
+    if (prevM <= 0) { prevM = 12; prevY--; }
+    const prefix = `${prevY}-${String(prevM).padStart(2, '0')}`;
+    const prevExpense = this.last6Transactions()
+      .filter(t => t.type === 'expense' && t.date.startsWith(prefix))
+      .reduce((s, t) => s + t.amount, 0);
+    if (prevExpense === 0) return null;
+    const currExpense = this.monthlyTransactions()
+      .filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    return Math.round(((currExpense - prevExpense) / prevExpense) * 100);
+  });
+
+  insights = computed(() => {
+    const list: { icon: string; text: string }[] = [];
+
+    const mom = this.momDelta();
+    if (mom !== null) {
+      if (mom > 0) list.push({ icon: '📈', text: `Gastaste un ${mom}% más que el mes pasado` });
+      else if (mom < 0) list.push({ icon: '📉', text: `Gastaste un ${Math.abs(mom)}% menos que el mes pasado` });
+      else list.push({ icon: '↔️', text: 'Gasto idéntico al mes pasado' });
+    }
+
+    const top = this.top3()[0];
+    if (top) {
+      list.push({ icon: '🏆', text: `Mayor categoría: ${top.label} (${top.pct}% del gasto)` });
+    }
+
+    const rate = this.savingsRate();
+    if (rate !== null) {
+      if (rate >= 20) list.push({ icon: '✅', text: `Tasa de ahorro del ${rate}% — ¡muy bien!` });
+      else if (rate > 0) list.push({ icon: '💡', text: `Tasa de ahorro del ${rate}%` });
+      else list.push({ icon: '⚠️', text: `Los gastos superan los ingresos en un ${Math.abs(rate)}%` });
+    }
+
+    const avg = this.avgDailySpend();
+    const day = new Date().getDate();
+    const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+    if (day > 5 && avg > 0) {
+      const projected = avg * daysInMonth;
+      list.push({ icon: '🔮', text: `Proyección de gasto: ${fmtAmount(projected, this.store.currencySymbol())} este mes` });
+    }
+
+    return list;
+  });
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
   ngOnInit(): void {
     this.load();
@@ -165,7 +291,6 @@ export class StatsComponent implements OnInit, AfterViewInit {
     this.last6Transactions.set(last6);
     this.loading.set(false);
 
-    // Defer chart init until DOM is rendered
     setTimeout(() => this.initCharts(), 0);
   }
 
@@ -209,14 +334,24 @@ export class StatsComponent implements OnInit, AfterViewInit {
       type: 'bar',
       data: {
         labels: this.barLabels(),
-        datasets: [{
-          label: 'Gastos',
-          data: this.barData(),
-          backgroundColor: '#7c6df066',
-          borderColor: '#7c6df0',
-          borderWidth: 1,
-          borderRadius: 6,
-        }],
+        datasets: [
+          {
+            label: 'Gastos',
+            data: this.barData(),
+            backgroundColor: '#7c6df066',
+            borderColor: '#7c6df0',
+            borderWidth: 1,
+            borderRadius: 4,
+          },
+          {
+            label: 'Ingresos',
+            data: this.barIncomeData(),
+            backgroundColor: '#4dff9166',
+            borderColor: '#4dff91',
+            borderWidth: 1,
+            borderRadius: 4,
+          },
+        ],
       },
       options: {
         scales: {
