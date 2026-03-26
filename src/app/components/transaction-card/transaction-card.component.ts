@@ -99,6 +99,7 @@ export class TransactionCardComponent {
     this.isSwiping.set(false);
     if (this.swipeX() <= -SWIPE_THRESHOLD) {
       // Animate fully then emit
+      navigator.vibrate?.(30);
       this.swipeX.set(-SWIPE_MAX);
       setTimeout(() => {
         this.delete.emit(this.tx().id!);

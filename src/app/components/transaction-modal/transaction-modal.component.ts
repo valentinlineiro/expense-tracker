@@ -210,6 +210,7 @@ export class TransactionModalComponent implements OnInit {
         date: this.date, note: this.note, recurring: this.recurring(),
       });
     }
+    navigator.vibrate?.(10);
     this.saved.emit();
     this.close.emit();
   }

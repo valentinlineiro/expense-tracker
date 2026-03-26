@@ -17,12 +17,20 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
         <div style="text-align:center;padding:60px;color:var(--text-muted);">Cargando...</div>
       }
 
-      @if (!loading()) {
+      @if (!loading() && totalTransactions() === 0) {
+        <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
+          <div style="font-size:52px;margin-bottom:16px;">📊</div>
+          <p style="margin:0 0 8px;font-size:16px;color:var(--text);">Aún no hay datos</p>
+          <p style="margin:0;font-size:13px;line-height:1.6;">Agrega tus primeros gastos e ingresos<br>en la pestaña <strong>Hoy</strong> para ver estadísticas aquí.</p>
+        </div>
+      }
+
+      @if (!loading() && totalTransactions() > 0) {
         <!-- Doughnut -->
         <div style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:20px;">
           <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">Gastos por categoría — este mes</p>
           @if (donutData().length === 0) {
-            <p style="color:var(--text-muted);text-align:center;padding:20px 0;">Sin gastos registrados</p>
+            <p style="color:var(--text-muted);text-align:center;padding:20px 0;">Sin gastos este mes</p>
           } @else {
             <div style="position:relative;max-width:220px;margin:0 auto 20px;">
               <canvas #donutCanvas></canvas>
@@ -79,6 +87,8 @@ export class StatsComponent implements OnInit, AfterViewInit {
   loading = signal(true);
   monthlyTransactions = signal<Transaction[]>([]);
   last6Transactions = signal<Transaction[]>([]);
+
+  totalTransactions = computed(() => this.last6Transactions().length);
 
   private donutChart?: Chart;
   private barChart?: Chart;

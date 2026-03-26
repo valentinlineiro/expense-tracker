@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, HostListener } from '@angular/core';
 import { StoreService } from '../../core/store.service';
 import { Transaction } from '../../core/db';
 import { fmtAmount, fmtMonth, fmtDateShort, currentYearMonth } from '../../core/utils';
@@ -10,6 +10,12 @@ import { TransactionCardComponent } from '../../components/transaction-card/tran
   standalone: true,
   imports: [TransactionModalComponent, TransactionCardComponent],
   template: `
+    <!-- Pull-to-refresh indicator -->
+    @if (pulling()) {
+      <div style="text-align:center;padding:14px;color:var(--text-muted);font-size:13px;">
+        {{ pullReady() ? '↑ Suelta para actualizar' : '↓ Tira para actualizar' }}
+      </div>
+    }
     <div style="padding:20px 16px 100px;">
       <!-- Month selector -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
@@ -118,6 +124,11 @@ export class MonthComponent implements OnInit {
   showModal = signal(false);
   editingTx = signal<Transaction | null>(null);
 
+  pulling = signal(false);
+  pullReady = signal(false);
+  private pullStartY = 0;
+  private readonly PULL_THRESHOLD = 70;
+
   totalExpense = computed(() =>
     this.transactions().filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   );
@@ -221,5 +232,35 @@ export class MonthComponent implements OnInit {
   async onDelete(id: number): Promise<void> {
     await this.store.deleteTransaction(id);
     await this.load();
+  }
+
+  @HostListener('touchstart', ['$event'])
+  onTouchStart(e: TouchEvent): void {
+    if (window.scrollY === 0) {
+      this.pullStartY = e.touches[0].clientY;
+    }
+  }
+
+  @HostListener('touchmove', ['$event'])
+  onTouchMove(e: TouchEvent): void {
+    if (!this.pullStartY) return;
+    const dy = e.touches[0].clientY - this.pullStartY;
+    if (dy > 10 && window.scrollY === 0) {
+      this.pulling.set(true);
+      this.pullReady.set(dy >= this.PULL_THRESHOLD);
+    } else {
+      this.pulling.set(false);
+      this.pullReady.set(false);
+    }
+  }
+
+  @HostListener('touchend')
+  onTouchEnd(): void {
+    if (this.pullReady()) {
+      this.load();
+    }
+    this.pulling.set(false);
+    this.pullReady.set(false);
+    this.pullStartY = 0;
   }
 }
