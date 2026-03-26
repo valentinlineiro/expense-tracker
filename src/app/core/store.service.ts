@@ -8,7 +8,7 @@ import {
   getTransactionsByDate, getTransactionsByMonth, getTransactionsLast6Months, getAllTransactions,
   getRecurringTransactions,
 } from './db';
-import { today } from './utils';
+import { today, toDateStr } from './utils';
 
 @Injectable({ providedIn: 'root' })
 export class StoreService {
@@ -18,6 +18,7 @@ export class StoreService {
   readonly categories = signal<Category[]>([]);
   readonly settings = signal<Record<string, unknown>>({});
   readonly budgets = signal<Budget[]>([]);
+  readonly netBalance = signal(0);
 
   // Derived
   readonly currencySymbol = computed(() => (this.settings()['currencySymbol'] as string) ?? '€');
@@ -38,6 +39,8 @@ export class StoreService {
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
+  private recurringTimer?: ReturnType<typeof setTimeout>;
+
   async init(): Promise<void> {
     const [txs, cats, settings, budgets] = await Promise.all([
       getTransactionsByDate(today()),
@@ -50,17 +53,17 @@ export class StoreService {
     this.settings.set(settings);
     this.budgets.set(budgets);
 
+    await this.refreshNetBalance();
     await this.checkRecurring();
+    this.scheduleRecurringCheck();
   }
 
   // ── Recurring auto-create ─────────────────────────────────────────────────
 
   private async checkRecurring(): Promise<void> {
-    const todayStr = today();
     const recurring = await getRecurringTransactions();
     if (!recurring.length) return;
 
-    // Group by template key — keep the most recent per unique recurring transaction
     const templates = new Map<string, Transaction>();
     for (const tx of recurring) {
       const key = `${tx.type}|${tx.categoryId}|${tx.amount}|${tx.recurring}`;
@@ -68,38 +71,65 @@ export class StoreService {
       if (!existing || tx.date > existing.date) templates.set(key, tx);
     }
 
-    const todayDate = new Date(todayStr);
+    const todayDate = new Date(today());
 
-    for (const tx of templates.values()) {
-      if (tx.date === todayStr) continue; // already have today's instance
-
-      const due = this.isRecurringDue(new Date(tx.date), todayDate, tx.recurring as RecurringInterval);
-      if (!due) continue;
-
-      // Avoid duplicate if already created today
-      const alreadyToday = recurring.some(t =>
-        t.date === todayStr &&
-        t.type === tx.type &&
-        t.categoryId === tx.categoryId &&
-        t.amount === tx.amount &&
-        t.recurring === tx.recurring
-      );
-      if (alreadyToday) continue;
-
-      await this.addTransaction({
-        amount: tx.amount, type: tx.type, categoryId: tx.categoryId,
-        note: tx.note, date: todayStr, recurring: tx.recurring as RecurringInterval,
-      });
+    for (const template of templates.values()) {
+      const dueDates = this.getDueDates(template, todayDate);
+      for (const date of dueDates) {
+        await this.addTransaction({
+          amount: template.amount,
+          type: template.type,
+          categoryId: template.categoryId,
+          note: template.note,
+          date,
+          recurring: template.recurring as RecurringInterval,
+        });
+      }
     }
   }
 
-  private isRecurringDue(templateDate: Date, todayDate: Date, interval: RecurringInterval): boolean {
-    switch (interval) {
-      case 'daily':   return true;
-      case 'weekly':  return templateDate.getDay() === todayDate.getDay();
-      case 'monthly': return templateDate.getDate() === todayDate.getDate();
-      default:        return false;
+  private getDueDates(template: Transaction, todayDate: Date): string[] {
+    if (template.recurring === 'none') return [];
+    const dates: string[] = [];
+    let cursor = this.addInterval(new Date(template.date), template.recurring);
+    while (cursor <= todayDate) {
+      dates.push(toDateStr(cursor));
+      cursor = this.addInterval(cursor, template.recurring);
     }
+    return dates;
+  }
+
+  private addInterval(date: Date, interval: RecurringInterval): Date {
+    const next = new Date(date);
+    switch (interval) {
+      case 'daily':
+        next.setDate(next.getDate() + 1);
+        break;
+      case 'weekly':
+        next.setDate(next.getDate() + 7);
+        break;
+      case 'monthly': {
+        const day = date.getDate();
+        next.setDate(1);
+        next.setMonth(next.getMonth() + 1);
+        const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+        next.setDate(Math.min(day, lastDay));
+        break;
+      }
+    }
+    return next;
+  }
+
+  private scheduleRecurringCheck(): void {
+    if (typeof window === 'undefined') return;
+    if (this.recurringTimer) clearTimeout(this.recurringTimer);
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(24, 0, 10, 0);
+    const delay = next.getTime() - now.getTime();
+    this.recurringTimer = window.setTimeout(() => {
+      void this.checkRecurring().finally(() => this.scheduleRecurringCheck());
+    }, delay);
   }
 
   // ── Transactions ──────────────────────────────────────────────────────────
@@ -111,6 +141,7 @@ export class StoreService {
     if (data.date === today()) {
       this.transactions.update(ts => [tx, ...ts]);
     }
+    await this.refreshNetBalance();
   }
 
   async updateTransaction(id: number, data: Partial<Omit<Transaction, 'id'>>): Promise<void> {
@@ -119,11 +150,13 @@ export class StoreService {
       ts.map(t => (t.id === id ? { ...t, ...data } : t))
         .filter(t => t.date === today())
     );
+    await this.refreshNetBalance();
   }
 
   async deleteTransaction(id: number): Promise<void> {
     await deleteTransaction(id);
     this.transactions.update(ts => ts.filter(t => t.id !== id));
+    await this.refreshNetBalance();
   }
 
   // ── Categories ────────────────────────────────────────────────────────────
@@ -169,4 +202,15 @@ export class StoreService {
   getTransactionsByMonth = getTransactionsByMonth;
   getTransactionsLast6Months = getTransactionsLast6Months;
   getAllTransactions = getAllTransactions;
+
+  private async refreshNetBalance(): Promise<void> {
+    const txs = await getAllTransactions();
+    this.netBalance.set(this.calculateBalance(txs));
+  }
+
+  private calculateBalance(transactions: Transaction[]): number {
+    return transactions.reduce((sum, tx) => {
+      return sum + (tx.type === 'income' ? tx.amount : -tx.amount);
+    }, 0);
+  }
 }

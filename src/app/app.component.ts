@@ -3,6 +3,7 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { StoreService } from './core/store.service';
 import { ToastService } from './core/toast.service';
 import { LocalizationService } from './core/localization.service';
+import { fmtAmount } from './core/utils';
 
 @Component({
   selector: 'app-root',
@@ -26,6 +27,29 @@ import { LocalizationService } from './core/localization.service';
     @if (toast.message()) {
       <div [style]="toastStyle()">{{ toast.message()!.text }}</div>
     }
+
+    <div style="display:flex;justify-content:center;padding:14px 16px 0;">
+      <div style="
+        width:100%;
+        max-width:420px;
+        background:var(--surface);
+        border:1px solid var(--border);
+        border-radius:18px;
+        padding:16px 18px;
+        text-align:center;
+        box-shadow:0 8px 30px rgba(0,0,0,0.08);
+      ">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">
+          {{ localization.strings().globalBalanceLabel }}
+        </div>
+        <div
+          class="mono"
+          [style]="'font-size:32px;font-weight:600;color:' + (store.netBalance() >= 0 ? 'var(--income)' : 'var(--expense)') + ';'"
+        >
+          {{ store.netBalance() >= 0 ? '+' : '−' }}{{ fmtAmount(Math.abs(store.netBalance()), store.currencySymbol()) }}
+        </div>
+      </div>
+    </div>
 
     <!-- Main content -->
     <div [style]="'height:100dvh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom);' + (isOffline() ? 'padding-top:34px;' : '')">
@@ -63,9 +87,10 @@ import { LocalizationService } from './core/localization.service';
   styleUrl: './app.component.css',
 })
 export class AppComponent implements OnInit {
-  private store = inject(StoreService);
+  readonly store = inject(StoreService);
   readonly localization = inject(LocalizationService);
   readonly toast = inject(ToastService);
+  readonly fmtAmount = fmtAmount;
 
   isOffline = signal(!navigator.onLine);
 

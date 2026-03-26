@@ -8,6 +8,7 @@ export interface TranslationCatalog {
     stats: string;
     settings: string;
   };
+  globalBalanceLabel: string;
   errors: {
     loadData: string;
   };
@@ -148,6 +149,7 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       stats: 'Estadísticas',
       settings: 'Ajustes',
     },
+    globalBalanceLabel: 'Saldo total',
     errors: {
       loadData: 'Error al cargar los datos. Recarga la página.',
     },
@@ -286,6 +288,7 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       stats: 'Stats',
       settings: 'Settings',
     },
+    globalBalanceLabel: 'Net balance',
     errors: {
       loadData: 'Failed to load data. Reload the page.',
     },

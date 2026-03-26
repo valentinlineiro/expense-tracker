@@ -32,6 +32,21 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
 
       @if (!loading() && totalTransactions() > 0) {
 
+        <!-- Global balance -->
+        <div style="margin-bottom:16px;">
+          <div style="background:var(--surface);border-radius:16px;padding:16px;text-align:center;">
+            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">
+              {{ localization.strings().globalBalanceLabel }}
+            </div>
+            <div
+              class="mono"
+              [style]="'font-size:24px;font-weight:600;color:' + (store.netBalance() >= 0 ? 'var(--income)' : 'var(--expense)') + ';'"
+            >
+              {{ store.netBalance() >= 0 ? '+' : '−' }}{{ fmtAmount(Math.abs(store.netBalance()), store.currencySymbol()) }}
+            </div>
+          </div>
+        </div>
+
         <!-- KPI cards -->
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
           <!-- Savings rate -->
