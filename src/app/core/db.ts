@@ -1,5 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 
+export type RecurringInterval = 'none' | 'daily' | 'weekly' | 'monthly';
+
 export interface Transaction {
   id?: number;
   amount: number;         // always positive
@@ -8,6 +10,7 @@ export interface Transaction {
   note: string;
   date: string;           // 'YYYY-MM-DD'
   createdAt: string;      // ISO string
+  recurring: RecurringInterval;
 }
 
 export interface Category {
@@ -18,6 +21,11 @@ export interface Category {
   type: 'expense' | 'income' | 'both';
   isDefault: boolean;
   createdAt: string;
+}
+
+export interface Budget {
+  categoryId: string;     // PK — one budget per category
+  monthlyLimit: number;
 }
 
 export interface Setting {
@@ -48,6 +56,7 @@ class AppDatabase extends Dexie {
   transactions!: Table<Transaction, number>;
   categories!: Table<Category, string>;
   settings!: Table<Setting, string>;
+  budgets!: Table<Budget, string>;
 
   constructor() {
     super('expense-tracker-db');
@@ -56,6 +65,19 @@ class AppDatabase extends Dexie {
       transactions: '++id, date, type, categoryId',
       categories: 'id, type',
       settings: 'key',
+    });
+
+    // Version 2: adds budgets table + recurring field on transactions (no index needed)
+    this.version(2).stores({
+      transactions: '++id, date, type, categoryId',
+      categories: 'id, type',
+      settings: 'key',
+      budgets: 'categoryId',
+    }).upgrade(tx => {
+      // Backfill recurring field for existing transactions
+      return tx.table('transactions').toCollection().modify(t => {
+        if (t.recurring === undefined) t.recurring = 'none';
+      });
     });
 
     this.on('populate', async () => {
@@ -94,6 +116,10 @@ export async function getAllTransactions(): Promise<Transaction[]> {
   return db.transactions.orderBy('date').reverse().toArray();
 }
 
+export async function getRecurringTransactions(): Promise<Transaction[]> {
+  return db.transactions.filter(t => t.recurring !== 'none').toArray();
+}
+
 export async function addTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): Promise<number> {
   return db.transactions.add({ ...data, createdAt: new Date().toISOString() });
 }
@@ -118,6 +144,20 @@ export async function addCategory(data: Omit<Category, 'createdAt'>): Promise<vo
 
 export async function deleteCategory(id: string): Promise<void> {
   await db.categories.delete(id);
+}
+
+// ── Budgets ───────────────────────────────────────────────────────────────────
+
+export async function getAllBudgets(): Promise<Budget[]> {
+  return db.budgets.toArray();
+}
+
+export async function upsertBudget(categoryId: string, monthlyLimit: number): Promise<void> {
+  await db.budgets.put({ categoryId, monthlyLimit });
+}
+
+export async function deleteBudget(categoryId: string): Promise<void> {
+  await db.budgets.delete(categoryId);
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────

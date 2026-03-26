@@ -88,6 +88,30 @@ import { generateSlug, exportToCsv, PALETTE } from '../../core/utils';
         </div>
       </section>
 
+      <!-- Budgets -->
+      <section style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;">
+        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">Presupuestos mensuales</p>
+        @for (cat of store.expenseCategories(); track cat.id) {
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <div [style]="'width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;background:' + cat.color + '22;flex-shrink:0;'">{{ cat.icon }}</div>
+            <span style="flex:1;font-size:14px;">{{ cat.name }}</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <input
+                type="number"
+                [value]="store.budgetMap().get(cat.id) ?? ''"
+                (change)="onBudgetChange(cat.id, $event)"
+                placeholder="—"
+                min="0"
+                step="1"
+                style="width:80px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right;"
+              >
+              <span style="font-size:13px;color:var(--text-muted);">{{ store.currencySymbol() }}</span>
+            </div>
+          </div>
+        }
+        <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;">Deja vacío para sin límite. Se muestra como barra de progreso en la vista mensual.</p>
+      </section>
+
       <!-- Export -->
       <section style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;">
         <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px;">Datos</p>
@@ -180,6 +204,15 @@ export class SettingsComponent implements OnInit {
       creado: t.createdAt,
     }));
     exportToCsv(rows, `gastos-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
+
+  async onBudgetChange(categoryId: string, event: Event): Promise<void> {
+    const val = parseFloat((event.target as HTMLInputElement).value);
+    if (isNaN(val) || val <= 0) {
+      await this.store.deleteBudget(categoryId);
+    } else {
+      await this.store.upsertBudget(categoryId, val);
+    }
   }
 
   async deleteAll(): Promise<void> {

@@ -40,6 +40,26 @@ import { TransactionCardComponent } from '../../components/transaction-card/tran
         </div>
       </div>
 
+      <!-- Budget progress bars -->
+      @if (!loading() && budgetRows().length > 0) {
+        <div style="background:var(--surface);border-radius:16px;padding:16px 20px;margin-bottom:20px;">
+          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 14px;">Presupuestos</p>
+          @for (row of budgetRows(); track row.categoryId) {
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                <span style="font-size:13px;">{{ row.icon }} {{ row.name }}</span>
+                <span class="mono" [style]="'font-size:12px;color:' + (row.pct >= 100 ? 'var(--expense)' : row.pct >= 80 ? '#ffd166' : 'var(--text-muted)') + ';'">
+                  {{ fmtAmount(row.spent, store.currencySymbol()) }} / {{ fmtAmount(row.limit, store.currencySymbol()) }}
+                </span>
+              </div>
+              <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;">
+                <div [style]="'height:100%;border-radius:3px;width:' + row.barPct + '%;background:' + (row.pct >= 100 ? 'var(--expense)' : row.pct >= 80 ? '#ffd166' : 'var(--accent)') + ';transition:width 0.3s;'"></div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
       <!-- Loading -->
       @if (loading()) {
         <div style="text-align:center;padding:40px;color:var(--text-muted);">Cargando...</div>
@@ -122,6 +142,31 @@ export class MonthComponent implements OnInit {
       }));
   });
 
+  budgetRows = computed(() => {
+    const budgetMap = this.store.budgetMap();
+    if (budgetMap.size === 0) return [];
+    const spentMap = new Map<string, number>();
+    for (const tx of this.transactions()) {
+      if (tx.type === 'expense') {
+        spentMap.set(tx.categoryId, (spentMap.get(tx.categoryId) ?? 0) + tx.amount);
+      }
+    }
+    return Array.from(budgetMap.entries()).map(([categoryId, limit]) => {
+      const cat = this.store.getCategoryById(categoryId);
+      const spent = spentMap.get(categoryId) ?? 0;
+      const pct = limit > 0 ? (spent / limit) * 100 : 0;
+      return {
+        categoryId,
+        name: cat?.name ?? categoryId,
+        icon: cat?.icon ?? '📦',
+        spent,
+        limit,
+        pct,
+        barPct: Math.min(100, pct),
+      };
+    });
+  });
+
   isCurrentMonth = computed(() => {
     const now = currentYearMonth();
     return this.year() === now.year && this.month() === now.month;
@@ -174,9 +219,7 @@ export class MonthComponent implements OnInit {
   }
 
   async onDelete(id: number): Promise<void> {
-    if (confirm('¿Eliminar esta transacción?')) {
-      await this.store.deleteTransaction(id);
-      await this.load();
-    }
+    await this.store.deleteTransaction(id);
+    await this.load();
   }
 }

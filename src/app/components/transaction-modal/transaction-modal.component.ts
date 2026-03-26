@@ -1,8 +1,8 @@
 import { Component, inject, input, output, signal, computed, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { StoreService } from '../../core/store.service';
-import { Transaction, Category } from '../../core/db';
-import { today, toDateStr } from '../../core/utils';
+import { Transaction, Category, RecurringInterval } from '../../core/db';
+import { today } from '../../core/utils';
 
 @Component({
   selector: 'app-transaction-modal',
@@ -124,6 +124,17 @@ import { today, toDateStr } from '../../core/utils';
           "
         >
 
+        <!-- Recurring -->
+        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Repetir</p>
+        <div style="display:flex;gap:8px;margin-bottom:28px;">
+          @for (opt of recurringOptions; track opt.value) {
+            <button
+              (click)="recurring.set(opt.value)"
+              [style]="recurringBtnStyle(opt.value)"
+            >{{ opt.label }}</button>
+          }
+        </div>
+
         <!-- Save button -->
         <button
           (click)="save()"
@@ -149,6 +160,14 @@ export class TransactionModalComponent implements OnInit {
   categoryId = signal('');
   date = today();
   note = '';
+  recurring = signal<RecurringInterval>('none');
+
+  readonly recurringOptions: { value: RecurringInterval; label: string }[] = [
+    { value: 'none', label: 'No' },
+    { value: 'daily', label: 'Diario' },
+    { value: 'weekly', label: 'Semanal' },
+    { value: 'monthly', label: 'Mensual' },
+  ];
 
   visibleCategories = computed(() =>
     this.type() === 'expense' ? this.store.expenseCategories() : this.store.incomeCategories()
@@ -167,6 +186,7 @@ export class TransactionModalComponent implements OnInit {
       this.categoryId.set(tx.categoryId);
       this.date = tx.date;
       this.note = tx.note;
+      this.recurring.set(tx.recurring ?? 'none');
     } else {
       // Default category to first available
       const cats = this.store.expenseCategories();
@@ -182,12 +202,12 @@ export class TransactionModalComponent implements OnInit {
     if (tx?.id != null) {
       await this.store.updateTransaction(tx.id, {
         amount, type: this.type(), categoryId: this.categoryId(),
-        date: this.date, note: this.note,
+        date: this.date, note: this.note, recurring: this.recurring(),
       });
     } else {
       await this.store.addTransaction({
         amount, type: this.type(), categoryId: this.categoryId(),
-        date: this.date, note: this.note,
+        date: this.date, note: this.note, recurring: this.recurring(),
       });
     }
     this.saved.emit();
@@ -204,6 +224,13 @@ export class TransactionModalComponent implements OnInit {
   }
 
   inactiveTypeStyle = 'flex:1;padding:10px;border-radius:8px;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;font-size:14px;background:none;color:var(--text-muted);';
+
+  recurringBtnStyle(value: RecurringInterval): string {
+    const base = "flex:1;padding:8px 4px;border-radius:8px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;";
+    return this.recurring() === value
+      ? base + 'border:1px solid var(--accent);background:var(--accent)22;color:var(--accent);'
+      : base + 'border:1px solid var(--border);background:none;color:var(--text-muted);';
+  }
 
   catStyle = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 4px;cursor:pointer;text-align:center;color:var(--text);';
 

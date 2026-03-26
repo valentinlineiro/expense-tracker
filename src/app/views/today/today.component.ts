@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, HostListener } from '@angular/core';
 import { StoreService } from '../../core/store.service';
 import { Transaction } from '../../core/db';
 import { fmtAmount, fmtDate, today } from '../../core/utils';
@@ -48,7 +48,7 @@ import { TransactionCardComponent } from '../../components/transaction-card/tran
         <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
           <div style="font-size:48px;margin-bottom:12px;">💸</div>
           <p style="margin:0;">Sin movimientos hoy</p>
-          <p style="margin:4px 0 0;font-size:13px;">Toca el botón + para agregar</p>
+          <p style="margin:4px 0 0;font-size:13px;">Toca + o pulsa <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:11px;">N</kbd> para agregar</p>
         </div>
       }
       @for (tx of store.todayTransactions(); track tx.id) {
@@ -115,6 +115,18 @@ export class TodayComponent {
 
   balance = computed(() => this.totalIncome() - this.totalExpense());
 
+  @HostListener('document:keydown', ['$event'])
+  onKeydown(e: KeyboardEvent): void {
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && !this.showModal()) {
+      this.showModal.set(true);
+    }
+    if (e.key === 'Escape' && this.showModal()) {
+      this.closeModal();
+    }
+  }
+
   openEdit(tx: Transaction): void {
     this.editingTx.set(tx);
     this.showModal.set(true);
@@ -126,8 +138,6 @@ export class TodayComponent {
   }
 
   async onDelete(id: number): Promise<void> {
-    if (confirm('¿Eliminar esta transacción?')) {
-      await this.store.deleteTransaction(id);
-    }
+    await this.store.deleteTransaction(id);
   }
 }
