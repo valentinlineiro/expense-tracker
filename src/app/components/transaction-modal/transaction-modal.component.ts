@@ -1,4 +1,4 @@
-import { Component, inject, input, output, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, input, output, signal, computed, effect, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { StoreService } from '../../core/store.service';
 import { ToastService } from '../../core/toast.service';
@@ -175,6 +175,13 @@ export class TransactionModalComponent implements OnInit {
   visibleCategories = computed(() =>
     this.type() === 'expense' ? this.store.expenseCategories() : this.store.incomeCategories()
   );
+
+  readonly ensureCategory = effect(() => {
+    const cats = this.visibleCategories();
+    if (!this.categoryId() && cats.length) {
+      this.categoryId.set(cats[0].id);
+    }
+  });
 
   canSave = computed(() => {
     const amt = parseFloat(this.amountStr());
