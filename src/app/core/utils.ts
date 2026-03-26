@@ -1,5 +1,5 @@
-import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { format, parseISO } from 'date-fns';
+import { getActiveLocale, getActiveNumberLocale } from './locale-config';
 
 // ── Palette (shared across the app) ──────────────────────────────────────────
 
@@ -20,21 +20,21 @@ export function toDateStr(date: Date): string {
 }
 
 export function fmtDate(dateStr: string): string {
-  return format(parseISO(dateStr), 'd MMM yyyy', { locale: es });
+  return format(parseISO(dateStr), 'd MMM yyyy', { locale: getActiveLocale() });
 }
 
 export function fmtDateShort(dateStr: string): string {
-  return format(parseISO(dateStr), 'd MMM', { locale: es });
+  return format(parseISO(dateStr), 'd MMM', { locale: getActiveLocale() });
 }
 
 export function fmtMonth(year: number, month: number): string {
   const d = new Date(year, month - 1, 1);
-  return format(d, 'MMMM yyyy', { locale: es });
+  return format(d, 'MMMM yyyy', { locale: getActiveLocale() });
 }
 
 export function fmtMonthShort(year: number, month: number): string {
   const d = new Date(year, month - 1, 1);
-  return format(d, 'MMM', { locale: es });
+  return format(d, 'MMM', { locale: getActiveLocale() });
 }
 
 export function currentYearMonth(): { year: number; month: number } {
@@ -45,7 +45,7 @@ export function currentYearMonth(): { year: number; month: number } {
 // ── Amount helpers ────────────────────────────────────────────────────────────
 
 export function fmtAmount(amount: number, symbol: string): string {
-  return `${symbol}${amount.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${symbol}${amount.toLocaleString(getActiveNumberLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 // ── Slug generator ────────────────────────────────────────────────────────────

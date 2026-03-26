@@ -4,6 +4,7 @@ import { Transaction } from '../../core/db';
 import { fmtAmount, fmtMonth, fmtDateShort, currentYearMonth } from '../../core/utils';
 import { TransactionModalComponent } from '../../components/transaction-modal/transaction-modal.component';
 import { TransactionCardComponent } from '../../components/transaction-card/transaction-card.component';
+import { LocalizationService } from '../../core/localization.service';
 
 @Component({
   selector: 'app-month',
@@ -13,7 +14,7 @@ import { TransactionCardComponent } from '../../components/transaction-card/tran
     <!-- Pull-to-refresh indicator -->
     @if (pulling()) {
       <div style="text-align:center;padding:14px;color:var(--text-muted);font-size:13px;">
-        {{ pullReady() ? '↑ Suelta para actualizar' : '↓ Tira para actualizar' }}
+        {{ pullReady() ? localization.strings().month.pull.ready : localization.strings().month.pull.pulling }}
       </div>
     }
     <div style="padding:20px 16px 100px;">
@@ -31,15 +32,15 @@ import { TransactionCardComponent } from '../../components/transaction-card/tran
       <!-- Summary -->
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:28px;">
         <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;">
-          <p style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px;">Ingresos</p>
+          <p style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px;">{{ localization.strings().month.summary.income }}</p>
           <div class="mono" style="color:var(--income);font-size:15px;font-weight:600;">+{{ fmtAmount(totalIncome(), store.currencySymbol()) }}</div>
         </div>
         <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;">
-          <p style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px;">Gastos</p>
+          <p style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px;">{{ localization.strings().month.summary.expense }}</p>
           <div class="mono" style="color:var(--expense);font-size:15px;font-weight:600;">−{{ fmtAmount(totalExpense(), store.currencySymbol()) }}</div>
         </div>
         <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;">
-          <p style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px;">Balance</p>
+          <p style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px;">{{ localization.strings().month.summary.balance }}</p>
           <div class="mono" [style]="'font-size:15px;font-weight:600;color:' + (balance() >= 0 ? 'var(--income)' : 'var(--expense)') + ';'">
             {{ balance() >= 0 ? '+' : '' }}{{ fmtAmount(balance(), store.currencySymbol()) }}
           </div>
@@ -49,7 +50,7 @@ import { TransactionCardComponent } from '../../components/transaction-card/tran
       <!-- Budget progress bars -->
       @if (!loading() && budgetRows().length > 0) {
         <div style="background:var(--surface);border-radius:16px;padding:16px 20px;margin-bottom:20px;">
-          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 14px;">Presupuestos</p>
+          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 14px;">{{ localization.strings().month.budgetsTitle }}</p>
           @for (row of budgetRows(); track row.categoryId) {
             <div style="margin-bottom:12px;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
@@ -68,14 +69,14 @@ import { TransactionCardComponent } from '../../components/transaction-card/tran
 
       <!-- Loading -->
       @if (loading()) {
-        <div style="text-align:center;padding:40px;color:var(--text-muted);">Cargando...</div>
+      <div style="text-align:center;padding:40px;color:var(--text-muted);">{{ localization.strings().month.loading }}</div>
       }
 
       <!-- Groups by day -->
       @if (!loading() && groupedByDay().length === 0) {
         <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
           <div style="font-size:48px;margin-bottom:12px;">📅</div>
-          <p style="margin:0;">Sin movimientos este mes</p>
+          <p style="margin:0;">{{ localization.strings().month.empty }}</p>
         </div>
       }
 
@@ -115,6 +116,7 @@ export class MonthComponent implements OnInit {
   readonly fmtAmount = fmtAmount;
   readonly fmtMonth = fmtMonth;
   readonly fmtDateShort = fmtDateShort;
+  readonly localization = inject(LocalizationService);
 
   year = signal(currentYearMonth().year);
   month = signal(currentYearMonth().month);

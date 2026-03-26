@@ -1,7 +1,8 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, inject, input, output, signal } from '@angular/core';
 import { Transaction } from '../../core/db';
 import { AmountDisplayComponent } from '../amount-display/amount-display.component';
 import { CategoryBadgeComponent } from '../category-badge/category-badge.component';
+import { LocalizationService } from '../../core/localization.service';
 
 const SWIPE_THRESHOLD = 80;   // px to trigger delete
 const SWIPE_MAX      = 110;   // px max drag
@@ -21,7 +22,7 @@ const SWIPE_MAX      = 110;   // px max drag
         display:flex;align-items:center;padding:0 20px;gap:6px;
         font-size:13px;font-weight:600;color:#fff;
         min-width:90px;justify-content:center;
-      ">🗑 Eliminar</div>
+      ">{{ localization.strings().transactionCard.delete }}</div>
 
       <!-- Card (slides over the delete layer) -->
       <div
@@ -53,7 +54,7 @@ const SWIPE_MAX      = 110;   // px max drag
           <button
             (click)="$event.stopPropagation(); delete.emit(tx().id!)"
             style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:4px;opacity:0.5;line-height:1;"
-            title="Eliminar"
+            title="{{ localization.strings().transactionCard.deleteTitle }}"
           >✕</button>
         </div>
       </div>
@@ -64,6 +65,7 @@ export class TransactionCardComponent {
   tx = input.required<Transaction>();
   edit = output<Transaction>();
   delete = output<number>();
+  readonly localization = inject(LocalizationService);
 
   private startX = 0;
   private dragging = false;
@@ -77,8 +79,10 @@ export class TransactionCardComponent {
   };
 
   recurringLabel(): string {
-    const map: Record<string, string> = { daily: 'Diario', weekly: 'Semanal', monthly: 'Mensual' };
-    return map[this.tx().recurring ?? ''] ?? '';
+    const rec = this.tx().recurring;
+    if (!rec || rec === 'none') return '';
+    const map = this.localization.strings().transactionCard.recurringLabel;
+    return map[rec] ?? '';
   }
 
   onTouchStart(e: TouchEvent): void {

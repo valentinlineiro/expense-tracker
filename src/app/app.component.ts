@@ -2,6 +2,7 @@ import { Component, inject, signal, OnInit, HostListener } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { StoreService } from './core/store.service';
 import { ToastService } from './core/toast.service';
+import { LocalizationService } from './core/localization.service';
 
 @Component({
   selector: 'app-root',
@@ -17,7 +18,7 @@ import { ToastService } from './core/toast.service';
         font-size:13px;z-index:200;
         font-family:'DM Sans',sans-serif;
       ">
-        Sin conexión — los datos se guardan localmente
+        {{ localization.strings().offlineBanner }}
       </div>
     }
 
@@ -43,19 +44,19 @@ import { ToastService } from './core/toast.service';
     ">
       <a routerLink="/today" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;text-decoration:none;color:var(--text-muted);font-size:12px;padding:4px 0;" #today="routerLinkActive">
         <span style="font-size:20px;">🏠</span>
-        <span [style]="'color:' + (today.isActive ? 'var(--accent)' : 'var(--text-muted)') + ';'">Hoy</span>
+        <span [style]="'color:' + (today.isActive ? 'var(--accent)' : 'var(--text-muted)') + ';'">{{ localization.strings().nav.today }}</span>
       </a>
       <a routerLink="/month" routerLinkActive="active" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;text-decoration:none;color:var(--text-muted);font-size:12px;padding:4px 0;" #month="routerLinkActive">
         <span style="font-size:20px;">📅</span>
-        <span [style]="'color:' + (month.isActive ? 'var(--accent)' : 'var(--text-muted)') + ';'">Mes</span>
+        <span [style]="'color:' + (month.isActive ? 'var(--accent)' : 'var(--text-muted)') + ';'">{{ localization.strings().nav.month }}</span>
       </a>
       <a routerLink="/stats" routerLinkActive="active" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;text-decoration:none;color:var(--text-muted);font-size:12px;padding:4px 0;" #stats="routerLinkActive">
         <span style="font-size:20px;">📊</span>
-        <span [style]="'color:' + (stats.isActive ? 'var(--accent)' : 'var(--text-muted)') + ';'">Stats</span>
+        <span [style]="'color:' + (stats.isActive ? 'var(--accent)' : 'var(--text-muted)') + ';'">{{ localization.strings().nav.stats }}</span>
       </a>
       <a routerLink="/settings" routerLinkActive="active" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;text-decoration:none;color:var(--text-muted);font-size:12px;padding:4px 0;" #settings="routerLinkActive">
         <span style="font-size:20px;">⚙️</span>
-        <span [style]="'color:' + (settings.isActive ? 'var(--accent)' : 'var(--text-muted)') + ';'">Ajustes</span>
+        <span [style]="'color:' + (settings.isActive ? 'var(--accent)' : 'var(--text-muted)') + ';'">{{ localization.strings().nav.settings }}</span>
       </a>
     </nav>
   `,
@@ -63,6 +64,7 @@ import { ToastService } from './core/toast.service';
 })
 export class AppComponent implements OnInit {
   private store = inject(StoreService);
+  readonly localization = inject(LocalizationService);
   readonly toast = inject(ToastService);
 
   isOffline = signal(!navigator.onLine);
@@ -85,7 +87,7 @@ export class AppComponent implements OnInit {
     try {
       await this.store.init();
     } catch {
-      this.toast.error('Error al cargar los datos. Recarga la página.');
+      this.toast.error(this.localization.strings().errors.loadData);
     }
   }
 }

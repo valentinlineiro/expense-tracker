@@ -1,8 +1,9 @@
-import { Component, inject, signal, computed, OnInit, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, effect, ElementRef, ViewChild } from '@angular/core';
 import { StoreService } from '../../core/store.service';
 import { Transaction } from '../../core/db';
 import { fmtAmount, fmtMonthShort, currentYearMonth } from '../../core/utils';
 import { Chart, DoughnutController, ArcElement, Tooltip, Legend, BarController, BarElement, CategoryScale, LinearScale } from 'chart.js';
+import { LocalizationService } from '../../core/localization.service';
 
 Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, BarElement, CategoryScale, LinearScale);
 
@@ -11,17 +12,21 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
   standalone: true,
   template: `
     <div style="padding:20px 16px 100px;">
-      <h1 style="font-size:26px;margin-bottom:24px;">Estadísticas</h1>
+      <h1 style="font-size:26px;margin-bottom:24px;">{{ localization.strings().stats.title }}</h1>
 
       @if (loading()) {
-        <div style="text-align:center;padding:60px;color:var(--text-muted);">Cargando...</div>
+      <div style="text-align:center;padding:60px;color:var(--text-muted);">{{ localization.strings().stats.loading }}</div>
       }
 
       @if (!loading() && totalTransactions() === 0) {
         <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
           <div style="font-size:52px;margin-bottom:16px;">📊</div>
-          <p style="margin:0 0 8px;font-size:16px;color:var(--text);">Aún no hay datos</p>
-          <p style="margin:0;font-size:13px;line-height:1.6;">Agrega tus primeros gastos e ingresos<br>en la pestaña <strong>Hoy</strong> para ver estadísticas aquí.</p>
+      <p style="margin:0 0 8px;font-size:16px;color:var(--text);">{{ localization.strings().stats.noDataTitle }}</p>
+          <p style="margin:0;font-size:13px;line-height:1.6;">
+            {{ localization.strings().stats.noDataBodyPrefix }}
+            <strong>{{ localization.strings().nav.today }}</strong>
+            {{ localization.strings().stats.noDataBodySuffix }}
+          </p>
         </div>
       }
 
@@ -31,7 +36,7 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
           <!-- Savings rate -->
           <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;">
-            <p style="color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">Ahorro</p>
+            <p style="color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">{{ localization.strings().stats.cards.savings }}</p>
             @if (savingsRate() !== null) {
               <div class="mono" [style]="'font-size:16px;font-weight:600;color:' + (savingsRate()! >= 0 ? 'var(--income)' : 'var(--expense)') + ';'">
                 {{ savingsRate() }}%
@@ -42,14 +47,14 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
           </div>
           <!-- Avg daily spend -->
           <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;">
-            <p style="color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">Media/día</p>
+            <p style="color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">{{ localization.strings().stats.cards.avgDaily }}</p>
             <div class="mono" style="font-size:16px;font-weight:600;color:var(--text);">
               {{ fmtAmount(avgDailySpend(), store.currencySymbol()) }}
             </div>
           </div>
           <!-- Month-over-month -->
           <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;">
-            <p style="color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">vs. anterior</p>
+            <p style="color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">{{ localization.strings().stats.cards.mom }}</p>
             @if (momDelta() !== null) {
               <div class="mono" [style]="'font-size:16px;font-weight:600;color:' + (momDelta()! <= 0 ? 'var(--income)' : 'var(--expense)') + ';'">
                 {{ momDelta()! > 0 ? '+' : '' }}{{ momDelta() }}%
@@ -62,9 +67,9 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
 
         <!-- Doughnut -->
         <div style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:20px;">
-          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">Gastos por categoría — este mes</p>
+          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">{{ localization.strings().stats.donut.title }}</p>
           @if (donutData().length === 0) {
-            <p style="color:var(--text-muted);text-align:center;padding:20px 0;">Sin gastos este mes</p>
+            <p style="color:var(--text-muted);text-align:center;padding:20px 0;">{{ localization.strings().stats.donut.empty }}</p>
           } @else {
             <div style="position:relative;max-width:220px;margin:0 auto 20px;">
               <canvas #donutCanvas></canvas>
@@ -85,13 +90,13 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
 
         <!-- Bar chart: income vs expense -->
         <div style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:20px;">
-          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 4px;">Tendencia — 6 meses</p>
+          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 4px;">{{ localization.strings().stats.trend.title }}</p>
           <div style="display:flex;gap:16px;margin-bottom:14px;">
             <span style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:5px;">
-              <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#7c6df0;"></span>Gastos
+              <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#7c6df0;"></span>{{ localization.strings().stats.trend.expense }}
             </span>
             <span style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:5px;">
-              <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#4dff91;"></span>Ingresos
+              <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#4dff91;"></span>{{ localization.strings().stats.trend.income }}
             </span>
           </div>
           <canvas #barCanvas style="max-height:180px;"></canvas>
@@ -100,14 +105,14 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
         <!-- Top 3 categories -->
         @if (top3().length > 0) {
           <div style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:20px;">
-            <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">Top categorías del mes</p>
+          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">{{ localization.strings().stats.topCategoriesTitle }}</p>
             @for (item of top3(); track item.label; let i = $index) {
               <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
                 <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--text-muted);width:20px;">{{ i + 1 }}</div>
                 <div [style]="'width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;background:' + item.color + '22;'">{{ item.icon }}</div>
                 <div style="flex:1;">
                   <div style="font-size:14px;">{{ item.label }}</div>
-                  <div style="font-size:12px;color:var(--text-muted);">{{ item.pct }}% del total</div>
+                  <div style="font-size:12px;color:var(--text-muted);">{{ item.pct }}% {{ localization.strings().stats.topPercentSuffix }}</div>
                 </div>
                 <div class="mono" style="font-size:14px;color:var(--expense);">{{ fmtAmount(item.amount, store.currencySymbol()) }}</div>
               </div>
@@ -118,7 +123,7 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
         <!-- Insights -->
         @if (insights().length > 0) {
           <div style="background:var(--surface);border-radius:16px;padding:20px;">
-            <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 14px;">Perspectivas</p>
+          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 14px;">{{ localization.strings().stats.insightsTitle }}</p>
             @for (insight of insights(); track insight.text) {
               <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;">
                 <span style="font-size:18px;flex-shrink:0;line-height:1.4;">{{ insight.icon }}</span>
@@ -132,13 +137,14 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
     </div>
   `,
 })
-export class StatsComponent implements OnInit, AfterViewInit {
+export class StatsComponent implements OnInit {
   @ViewChild('donutCanvas') donutCanvasRef!: ElementRef<HTMLCanvasElement>;
   @ViewChild('barCanvas') barCanvasRef!: ElementRef<HTMLCanvasElement>;
 
   readonly store = inject(StoreService);
   readonly fmtAmount = fmtAmount;
   readonly fmtMonthShort = fmtMonthShort;
+  readonly localization = inject(LocalizationService);
 
   loading = signal(true);
   monthlyTransactions = signal<Transaction[]>([]);
@@ -148,6 +154,12 @@ export class StatsComponent implements OnInit, AfterViewInit {
 
   private donutChart?: Chart;
   private barChart?: Chart;
+  private readonly redrawCharts = effect(() => {
+    this.localization.language();
+    if (!this.loading()) {
+      setTimeout(() => this.initCharts(), 0);
+    }
+  });
 
   donutData = computed(() => {
     const expenses = this.monthlyTransactions().filter(t => t.type === 'expense');
@@ -238,25 +250,30 @@ export class StatsComponent implements OnInit, AfterViewInit {
   });
 
   insights = computed(() => {
+    const strings = this.localization.strings().stats;
+    const map = strings.insights;
     const list: { icon: string; text: string }[] = [];
 
     const mom = this.momDelta();
     if (mom !== null) {
-      if (mom > 0) list.push({ icon: '📈', text: `Gastaste un ${mom}% más que el mes pasado` });
-      else if (mom < 0) list.push({ icon: '📉', text: `Gastaste un ${Math.abs(mom)}% menos que el mes pasado` });
-      else list.push({ icon: '↔️', text: 'Gasto idéntico al mes pasado' });
+      if (mom > 0) list.push({ icon: '📈', text: this.localization.interpolate(map.moreSpent, { percent: mom }) });
+      else if (mom < 0) list.push({ icon: '📉', text: this.localization.interpolate(map.lessSpent, { percent: Math.abs(mom) }) });
+      else list.push({ icon: '↔️', text: map.sameSpent });
     }
 
     const top = this.top3()[0];
     if (top) {
-      list.push({ icon: '🏆', text: `Mayor categoría: ${top.label} (${top.pct}% del gasto)` });
+      list.push({
+        icon: '🏆',
+        text: this.localization.interpolate(map.topCategory, { label: top.label, percent: top.pct }),
+      });
     }
 
     const rate = this.savingsRate();
     if (rate !== null) {
-      if (rate >= 20) list.push({ icon: '✅', text: `Tasa de ahorro del ${rate}% — ¡muy bien!` });
-      else if (rate > 0) list.push({ icon: '💡', text: `Tasa de ahorro del ${rate}%` });
-      else list.push({ icon: '⚠️', text: `Los gastos superan los ingresos en un ${Math.abs(rate)}%` });
+      if (rate >= 20) list.push({ icon: '✅', text: this.localization.interpolate(map.savingsHigh, { rate }) });
+      else if (rate > 0) list.push({ icon: '💡', text: this.localization.interpolate(map.savingsPositive, { rate }) });
+      else list.push({ icon: '⚠️', text: this.localization.interpolate(map.savingsNegative, { rate: Math.abs(rate) }) });
     }
 
     const avg = this.avgDailySpend();
@@ -264,7 +281,12 @@ export class StatsComponent implements OnInit, AfterViewInit {
     const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
     if (day > 5 && avg > 0) {
       const projected = avg * daysInMonth;
-      list.push({ icon: '🔮', text: `Proyección de gasto: ${fmtAmount(projected, this.store.currencySymbol())} este mes` });
+      list.push({
+        icon: '🔮',
+        text: this.localization.interpolate(map.projection, {
+          amount: fmtAmount(projected, this.store.currencySymbol()),
+        }),
+      });
     }
 
     return list;
@@ -274,10 +296,6 @@ export class StatsComponent implements OnInit, AfterViewInit {
 
   ngOnInit(): void {
     this.load();
-  }
-
-  ngAfterViewInit(): void {
-    // Charts drawn after data loads
   }
 
   async load(): Promise<void> {
@@ -330,13 +348,15 @@ export class StatsComponent implements OnInit, AfterViewInit {
     if (!canvas) return;
     this.barChart?.destroy();
 
+    const trendStrings = this.localization.strings().stats.trend;
+
     this.barChart = new Chart(canvas, {
       type: 'bar',
       data: {
         labels: this.barLabels(),
         datasets: [
           {
-            label: 'Gastos',
+            label: trendStrings.expense,
             data: this.barData(),
             backgroundColor: '#7c6df066',
             borderColor: '#7c6df0',
@@ -344,7 +364,7 @@ export class StatsComponent implements OnInit, AfterViewInit {
             borderRadius: 4,
           },
           {
-            label: 'Ingresos',
+            label: trendStrings.income,
             data: this.barIncomeData(),
             backgroundColor: '#4dff9166',
             borderColor: '#4dff91',

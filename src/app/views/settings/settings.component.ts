@@ -4,6 +4,8 @@ import { StoreService } from '../../core/store.service';
 import { ToastService } from '../../core/toast.service';
 import { Category, RecurringInterval } from '../../core/db';
 import { generateSlug, exportToCsv, PALETTE } from '../../core/utils';
+import { LocalizationService } from '../../core/localization.service';
+import { Language } from '../../core/locale-config';
 
 @Component({
   selector: 'app-settings',
@@ -11,11 +13,11 @@ import { generateSlug, exportToCsv, PALETTE } from '../../core/utils';
   imports: [FormsModule],
   template: `
     <div style="padding:20px 16px 100px;">
-      <h1 style="font-size:26px;margin-bottom:28px;">Ajustes</h1>
+      <h1 style="font-size:26px;margin-bottom:28px;">{{ localization.strings().settings.title }}</h1>
 
       <!-- Currency -->
       <section style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;">
-        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px;">Moneda</p>
+        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px;">{{ localization.strings().settings.currency }}</p>
         <div style="display:flex;gap:10px;align-items:center;">
           <input
             [(ngModel)]="symbolInput"
@@ -31,22 +33,38 @@ import { generateSlug, exportToCsv, PALETTE } from '../../core/utils';
           <button
             (click)="saveCurrency()"
             style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;"
-          >Guardar</button>
+          >{{ localization.strings().settings.save }}</button>
           @if (currencySaved()) {
-            <span style="color:var(--income);font-size:13px;">✓ Guardado</span>
+            <span style="color:var(--income);font-size:13px;">{{ localization.strings().settings.saved }}</span>
           }
         </div>
       </section>
 
+      <!-- Language -->
+      <section style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;">
+        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px;">{{ localization.strings().settings.language }}</p>
+        <div style="display:flex;gap:10px;margin-bottom:10px;">
+          @for (option of localization.languageOptions; track option.value) {
+            <button
+              (click)="localization.setLanguage(option.value)"
+              [style]="languageBtnStyle(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          }
+        </div>
+        <p style="font-size:11px;color:var(--text-muted);margin:0;">{{ localization.strings().settings.languageHint }}</p>
+      </section>
+
       <!-- Categories -->
       <section style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;">
-        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">Categorías</p>
+        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">{{ localization.strings().settings.categories }}</p>
 
         @for (cat of store.categories(); track cat.id) {
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
             <div [style]="'width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;background:' + cat.color + '22;'">{{ cat.icon }}</div>
             <span style="flex:1;font-size:14px;">{{ cat.name }}</span>
-            <span style="font-size:11px;color:var(--text-muted);">{{ cat.type }}</span>
+            <span style="font-size:11px;color:var(--text-muted);">{{ localization.strings().categoryTypes[cat.type] }}</span>
             @if (!cat.isDefault) {
               <button
                 (click)="deleteCategory(cat)"
@@ -59,17 +77,17 @@ import { generateSlug, exportToCsv, PALETTE } from '../../core/utils';
         }
 
         <!-- Add category form -->
-        <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
-          <p style="font-size:13px;color:var(--text-muted);margin:0 0 10px;">Nueva categoría</p>
+          <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+          <p style="font-size:13px;color:var(--text-muted);margin:0 0 10px;">{{ localization.strings().settings.newCategory }}</p>
           <div style="display:flex;gap:8px;margin-bottom:8px;">
             <input [(ngModel)]="newCatIcon" maxlength="2" placeholder="🏷" style="width:50px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-size:18px;">
-            <input [(ngModel)]="newCatName" placeholder="Nombre" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'DM Sans',sans-serif;">
+            <input [(ngModel)]="newCatName" placeholder="{{ localization.strings().settings.namePlaceholder }}" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'DM Sans',sans-serif;">
           </div>
           <div style="display:flex;gap:8px;margin-bottom:10px;">
             <select [(ngModel)]="newCatType" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-family:'DM Sans',sans-serif;">
-              <option value="expense">Gasto</option>
-              <option value="income">Ingreso</option>
-              <option value="both">Ambos</option>
+              <option value="expense">{{ localization.strings().settings.typeOptions.expense }}</option>
+              <option value="income">{{ localization.strings().settings.typeOptions.income }}</option>
+              <option value="both">{{ localization.strings().settings.typeOptions.both }}</option>
             </select>
           </div>
           <!-- Color picker -->
@@ -85,13 +103,13 @@ import { generateSlug, exportToCsv, PALETTE } from '../../core/utils';
             (click)="addCategory()"
             [disabled]="!newCatName.trim() || !newCatIcon.trim()"
             style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;"
-          >+ Agregar</button>
+          >{{ localization.strings().settings.addCategory }}</button>
         </div>
       </section>
 
       <!-- Budgets -->
       <section style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;">
-        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">Presupuestos mensuales</p>
+        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">{{ localization.strings().settings.budgets }}</p>
         @for (cat of store.expenseCategories(); track cat.id) {
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
             <div [style]="'width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;background:' + cat.color + '22;flex-shrink:0;'">{{ cat.icon }}</div>
@@ -110,19 +128,19 @@ import { generateSlug, exportToCsv, PALETTE } from '../../core/utils';
             </div>
           </div>
         }
-        <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;">Deja vacío para sin límite. Se muestra como barra de progreso en la vista mensual.</p>
+        <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;">{{ localization.strings().settings.budgetsHint }}</p>
       </section>
 
       <!-- Data: export + import -->
       <section style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;">
-        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px;">Datos</p>
+        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px;">{{ localization.strings().settings.data }}</p>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <button
             (click)="exportCsv()"
             style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;"
-          >📤 Exportar a CSV</button>
+          >{{ localization.strings().settings.exportCsv }}</button>
           <label style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;text-align:center;display:block;">
-            📥 Importar desde CSV
+            {{ localization.strings().settings.importCsv }}
             <input type="file" accept=".csv" (change)="importCsv($event)" style="display:none;">
           </label>
           @if (importResult()) {
@@ -133,23 +151,23 @@ import { generateSlug, exportToCsv, PALETTE } from '../../core/utils';
 
       <!-- Danger zone -->
       <section style="background:#ff4d4d11;border:1px solid #ff4d4d33;border-radius:16px;padding:20px;">
-        <p style="color:var(--expense);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px;">Zona peligrosa</p>
+        <p style="color:var(--expense);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px;">{{ localization.strings().settings.dangerZone }}</p>
         @if (!confirmDelete()) {
           <button
             (click)="confirmDelete.set(true)"
             style="width:100%;background:none;border:1px solid var(--expense);border-radius:10px;padding:14px;color:var(--expense);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;"
-          >🗑 Borrar todos los datos</button>
+          >{{ localization.strings().settings.deleteData }}</button>
         } @else {
-          <p style="color:var(--expense);font-size:14px;margin:0 0 12px;">¿Estás seguro? Esta acción es irreversible.</p>
+          <p style="color:var(--expense);font-size:14px;margin:0 0 12px;">{{ localization.strings().settings.deleteConfirm }}</p>
           <div style="display:flex;gap:10px;">
             <button
               (click)="confirmDelete.set(false)"
               style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;"
-            >Cancelar</button>
+            >{{ localization.strings().settings.cancel }}</button>
             <button
               (click)="deleteAll()"
               style="flex:1;background:var(--expense);border:none;border-radius:10px;padding:12px;color:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;"
-            >Sí, borrar todo</button>
+            >{{ localization.strings().settings.confirmDelete }}</button>
           </div>
         }
       </section>
@@ -159,6 +177,7 @@ import { generateSlug, exportToCsv, PALETTE } from '../../core/utils';
 export class SettingsComponent implements OnInit {
   readonly store = inject(StoreService);
   private readonly toast = inject(ToastService);
+  readonly localization = inject(LocalizationService);
   readonly palette = PALETTE;
 
   symbolInput = '';
@@ -200,14 +219,17 @@ export class SettingsComponent implements OnInit {
 
   async deleteCategory(cat: Category): Promise<void> {
     if (cat.isDefault) return;
-    if (confirm(`¿Eliminar categoría "${cat.name}"?`)) {
+    if (confirm(this.localization.interpolate(
+      this.localization.strings().settings.categoryDeleteConfirm,
+      { name: cat.name }
+    ))) {
       await this.store.deleteCategory(cat.id);
     }
   }
 
   async exportCsv(): Promise<void> {
     const txs = await this.store.getAllTransactions();
-    if (!txs.length) { this.toast.show('No hay transacciones para exportar.'); return; }
+    if (!txs.length) { this.toast.show(this.localization.strings().toast.exportEmpty); return; }
     const rows = txs.map(t => ({
       fecha: t.date,
       tipo: t.type,
@@ -226,7 +248,7 @@ export class SettingsComponent implements OnInit {
     try {
       const text = await file.text();
       const lines = text.trim().split('\n').filter(l => l.trim());
-      if (lines.length < 2) { this.toast.error('El CSV está vacío o no tiene datos.'); return; }
+      if (lines.length < 2) { this.toast.error(this.localization.strings().toast.csvEmpty); return; }
 
       const headers = lines[0].split(',').map(h => h.trim());
       const col = (name: string) => headers.indexOf(name);
@@ -234,7 +256,7 @@ export class SettingsComponent implements OnInit {
       const iCat = col('categoria'), iNote = col('nota'), iRecurring = col('recurring');
 
       if (iDate < 0 || iType < 0 || iAmount < 0 || iCat < 0) {
-        this.toast.error('Formato no reconocido. Exporta primero desde esta app.');
+        this.toast.error(this.localization.strings().toast.csvFormat);
         return;
       }
 
@@ -262,10 +284,13 @@ export class SettingsComponent implements OnInit {
         imported++;
       }
 
-      this.importResult.set(`${imported} transacciones importadas`);
+      this.importResult.set(this.localization.interpolate(
+        this.localization.strings().settings.importSuccess,
+        { count: imported }
+      ));
       setTimeout(() => this.importResult.set(''), 4000);
     } catch {
-      this.toast.error('Error al leer el archivo. Comprueba que es un CSV válido.');
+      this.toast.error(this.localization.strings().toast.csvReadError);
     } finally {
       (event.target as HTMLInputElement).value = '';
     }
@@ -300,5 +325,10 @@ export class SettingsComponent implements OnInit {
     await db.settings.clear();
     // Re-init will re-seed on next open; just reload
     window.location.reload();
+  }
+
+  languageBtnStyle(value: Language): string {
+    const active = this.localization.language() === value;
+    return `flex:1;padding:10px;border-radius:10px;border:1px solid ${active ? 'var(--accent)' : 'var(--border)'};background:${active ? 'var(--accent)' : 'transparent'};color:${active ? '#fff' : 'var(--text)'};cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;`;
   }
 }

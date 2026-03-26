@@ -4,6 +4,7 @@ import { Transaction } from '../../core/db';
 import { fmtAmount, fmtDate, today } from '../../core/utils';
 import { TransactionModalComponent } from '../../components/transaction-modal/transaction-modal.component';
 import { TransactionCardComponent } from '../../components/transaction-card/transaction-card.component';
+import { LocalizationService } from '../../core/localization.service';
 
 @Component({
   selector: 'app-today',
@@ -14,7 +15,7 @@ import { TransactionCardComponent } from '../../components/transaction-card/tran
       <!-- Header -->
       <div style="margin-bottom:28px;">
         <p style="color:var(--text-muted);font-size:13px;margin:0 0 4px;">{{ formattedDate }}</p>
-        <h1 style="font-size:26px;margin:0;">Hoy</h1>
+        <h1 style="font-size:26px;margin:0;">{{ localization.strings().today.header }}</h1>
       </div>
 
       <!-- Balance card -->
@@ -28,7 +29,7 @@ import { TransactionCardComponent } from '../../components/transaction-card/tran
         align-items:center;
       ">
         <div>
-          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 4px;">Balance del día</p>
+          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 4px;">{{ localization.strings().today.balanceLabel }}</p>
           <div class="mono" [style]="'font-size:28px;font-weight:600;color:' + (balance() >= 0 ? 'var(--income)' : 'var(--expense)') + ';'">
             {{ balance() >= 0 ? '+' : '' }}{{ fmtAmount(balance(), store.currencySymbol()) }}
           </div>
@@ -47,8 +48,14 @@ import { TransactionCardComponent } from '../../components/transaction-card/tran
       @if (store.todayTransactions().length === 0) {
         <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
           <div style="font-size:48px;margin-bottom:12px;">💸</div>
-          <p style="margin:0;">Sin movimientos hoy</p>
-          <p style="margin:4px 0 0;font-size:13px;">Toca + o pulsa <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:11px;">N</kbd> para agregar</p>
+          <p style="margin:0;">{{ localization.strings().today.emptyTitle }}</p>
+          <p style="margin:4px 0 0;font-size:13px;">
+            {{ localization.strings().today.emptyHintPrefix }}
+            <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:11px;">+</kbd>
+            {{ localization.strings().today.emptyHintOr }}
+            <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:11px;">N</kbd>
+            {{ localization.strings().today.emptyHintSuffix }}
+          </p>
         </div>
       }
       @for (tx of store.todayTransactions(); track tx.id) {
@@ -95,6 +102,7 @@ import { TransactionCardComponent } from '../../components/transaction-card/tran
 export class TodayComponent {
   readonly store = inject(StoreService);
   readonly fmtAmount = fmtAmount;
+  readonly localization = inject(LocalizationService);
 
   showModal = signal(false);
   editingTx = signal<Transaction | null>(null);

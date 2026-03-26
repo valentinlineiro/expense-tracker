@@ -1,0 +1,423 @@
+import type { Language } from './locale-config';
+
+export interface TranslationCatalog {
+  offlineBanner: string;
+  nav: {
+    today: string;
+    month: string;
+    stats: string;
+    settings: string;
+  };
+  errors: {
+    loadData: string;
+  };
+  today: {
+    header: string;
+    balanceLabel: string;
+    emptyTitle: string;
+    emptyHintPrefix: string;
+    emptyHintOr: string;
+    emptyHintSuffix: string;
+  };
+  month: {
+    pull: {
+      pulling: string;
+      ready: string;
+    };
+    summary: {
+      income: string;
+      expense: string;
+      balance: string;
+    };
+    budgetsTitle: string;
+    loading: string;
+    empty: string;
+  };
+  stats: {
+    title: string;
+    loading: string;
+    noDataTitle: string;
+    noDataBodyPrefix: string;
+    noDataBodySuffix: string;
+    cards: {
+      savings: string;
+      avgDaily: string;
+      mom: string;
+    };
+    donut: {
+      title: string;
+      empty: string;
+    };
+    trend: {
+      title: string;
+      expense: string;
+      income: string;
+    };
+    topCategoriesTitle: string;
+    topPercentSuffix: string;
+    insightsTitle: string;
+    insights: {
+      moreSpent: string;
+      lessSpent: string;
+      sameSpent: string;
+      topCategory: string;
+      savingsHigh: string;
+      savingsPositive: string;
+      savingsNegative: string;
+      projection: string;
+    };
+  };
+  settings: {
+    title: string;
+    currency: string;
+    save: string;
+    saved: string;
+    categories: string;
+    newCategory: string;
+    namePlaceholder: string;
+    typeOptions: {
+      expense: string;
+      income: string;
+      both: string;
+    };
+    addCategory: string;
+    budgets: string;
+    budgetsHint: string;
+    data: string;
+    exportCsv: string;
+    importCsv: string;
+    importSuccess: string;
+    language: string;
+    languageHint: string;
+    dangerZone: string;
+    deleteData: string;
+    deleteConfirm: string;
+    cancel: string;
+    confirmDelete: string;
+    categoryDeleteConfirm: string;
+  };
+  transactionModal: {
+    editTitle: string;
+    newTitle: string;
+    typeExpense: string;
+    typeIncome: string;
+    category: string;
+    date: string;
+    note: string;
+    notePlaceholder: string;
+    recurring: string;
+    recurringOptions: {
+      none: string;
+      daily: string;
+      weekly: string;
+      monthly: string;
+    };
+    save: string;
+    saving: string;
+    saveChanges: string;
+    saveError: string;
+  };
+  transactionCard: {
+    delete: string;
+    deleteTitle: string;
+    recurringLabel: {
+      daily: string;
+      weekly: string;
+      monthly: string;
+    };
+  };
+  toast: {
+    exportEmpty: string;
+    csvEmpty: string;
+    csvFormat: string;
+    csvReadError: string;
+  };
+  categoryTypes: {
+    expense: string;
+    income: string;
+    both: string;
+  };
+}
+
+const TRANSLATIONS: Record<Language, TranslationCatalog> = {
+  es: {
+    offlineBanner: 'Sin conexión — los datos se guardan localmente',
+    nav: {
+      today: 'Hoy',
+      month: 'Mes',
+      stats: 'Estadísticas',
+      settings: 'Ajustes',
+    },
+    errors: {
+      loadData: 'Error al cargar los datos. Recarga la página.',
+    },
+    today: {
+      header: 'Hoy',
+      balanceLabel: 'Balance del día',
+      emptyTitle: 'Sin movimientos hoy',
+      emptyHintPrefix: 'Toca',
+      emptyHintOr: 'o pulsa',
+      emptyHintSuffix: 'para agregar',
+    },
+    month: {
+      pull: {
+        pulling: '↓ Tira para actualizar',
+        ready: '↑ Suelta para actualizar',
+      },
+      summary: {
+        income: 'Ingresos',
+        expense: 'Gastos',
+        balance: 'Balance',
+      },
+      budgetsTitle: 'Presupuestos',
+      loading: 'Cargando...',
+      empty: 'Sin movimientos este mes',
+    },
+    stats: {
+      title: 'Estadísticas',
+      loading: 'Cargando...',
+      noDataTitle: 'Aún no hay datos',
+      noDataBodyPrefix: 'Agrega tus primeros gastos e ingresos en la pestaña ',
+      noDataBodySuffix: ' para ver estadísticas aquí.',
+      cards: {
+        savings: 'Ahorro',
+        avgDaily: 'Media/día',
+        mom: 'vs. anterior',
+      },
+      donut: {
+        title: 'Gastos por categoría — este mes',
+        empty: 'Sin gastos este mes',
+      },
+      trend: {
+        title: 'Tendencia — 6 meses',
+        expense: 'Gastos',
+        income: 'Ingresos',
+      },
+      topCategoriesTitle: 'Top categorías del mes',
+      topPercentSuffix: 'del total',
+      insightsTitle: 'Perspectivas',
+      insights: {
+        moreSpent: 'Gastaste un {percent}% más que el mes pasado',
+        lessSpent: 'Gastaste un {percent}% menos que el mes pasado',
+        sameSpent: 'Gasto idéntico al mes pasado',
+        topCategory: 'Mayor categoría: {label} ({percent}% del gasto)',
+        savingsHigh: 'Tasa de ahorro del {rate}% — ¡muy bien!',
+        savingsPositive: 'Tasa de ahorro del {rate}%',
+        savingsNegative: 'Los gastos superan los ingresos en un {rate}%',
+        projection: 'Proyección de gasto: {amount} este mes',
+      },
+    },
+    settings: {
+      title: 'Ajustes',
+      currency: 'Moneda',
+      save: 'Guardar',
+      saved: '✓ Guardado',
+      categories: 'Categorías',
+      newCategory: 'Nueva categoría',
+      namePlaceholder: 'Nombre',
+      typeOptions: {
+        expense: 'Gasto',
+        income: 'Ingreso',
+        both: 'Ambos',
+      },
+      addCategory: '+ Agregar',
+      budgets: 'Presupuestos mensuales',
+      budgetsHint: 'Deja vacío para sin límite. Se muestra como barra de progreso en la vista mensual.',
+      data: 'Datos',
+      exportCsv: '📤 Exportar a CSV',
+      importCsv: '📥 Importar desde CSV',
+      importSuccess: '{count} transacciones importadas',
+      language: 'Idioma',
+      languageHint: 'Selecciona el idioma de la app',
+      dangerZone: 'Zona peligrosa',
+      deleteData: '🗑 Borrar todos los datos',
+      deleteConfirm: '¿Estás seguro? Esta acción es irreversible.',
+      cancel: 'Cancelar',
+      confirmDelete: 'Sí, borrar todo',
+      categoryDeleteConfirm: '¿Eliminar categoría \"{name}\"?',
+    },
+    transactionModal: {
+      editTitle: 'Editar transacción',
+      newTitle: 'Nueva transacción',
+      typeExpense: 'Gasto',
+      typeIncome: 'Ingreso',
+      category: 'Categoría',
+      date: 'Fecha',
+      note: 'Nota (opcional)',
+      notePlaceholder: 'Descripción...',
+      recurring: 'Repetir',
+      recurringOptions: {
+        none: 'No',
+        daily: 'Diario',
+        weekly: 'Semanal',
+        monthly: 'Mensual',
+      },
+      save: 'Agregar',
+      saving: 'Guardando…',
+      saveChanges: 'Guardar cambios',
+      saveError: 'No se pudo guardar la transacción. Inténtalo de nuevo.',
+    },
+    transactionCard: {
+      delete: '🗑 Eliminar',
+      deleteTitle: 'Eliminar',
+      recurringLabel: {
+        daily: 'Diario',
+        weekly: 'Semanal',
+        monthly: 'Mensual',
+      },
+    },
+    toast: {
+      exportEmpty: 'No hay transacciones para exportar.',
+      csvEmpty: 'El CSV está vacío o no tiene datos.',
+      csvFormat: 'Formato no reconocido. Exporta primero desde esta app.',
+      csvReadError: 'Error al leer el archivo. Comprueba que es un CSV válido.',
+    },
+    categoryTypes: {
+      expense: 'Gasto',
+      income: 'Ingreso',
+      both: 'Ambos',
+    },
+  },
+  en: {
+    offlineBanner: 'Offline — data stays on your device',
+    nav: {
+      today: 'Today',
+      month: 'Month',
+      stats: 'Stats',
+      settings: 'Settings',
+    },
+    errors: {
+      loadData: 'Failed to load data. Reload the page.',
+    },
+    today: {
+      header: 'Today',
+      balanceLabel: 'Day balance',
+      emptyTitle: 'No transactions yet',
+      emptyHintPrefix: 'Tap',
+      emptyHintOr: 'or press',
+      emptyHintSuffix: 'to add',
+    },
+    month: {
+      pull: {
+        pulling: '↓ Pull to refresh',
+        ready: '↑ Release to refresh',
+      },
+      summary: {
+        income: 'Income',
+        expense: 'Expenses',
+        balance: 'Balance',
+      },
+      budgetsTitle: 'Budgets',
+      loading: 'Loading...',
+      empty: 'No activity this month',
+    },
+    stats: {
+      title: 'Statistics',
+      loading: 'Loading...',
+      noDataTitle: 'No data yet',
+      noDataBodyPrefix: 'Add your first expenses and income on the ',
+      noDataBodySuffix: ' tab to see stats here.',
+      cards: {
+        savings: 'Savings',
+        avgDaily: 'Avg/day',
+        mom: 'vs prev. month',
+      },
+      donut: {
+        title: 'Expenses by category — this month',
+        empty: 'No expenses this month',
+      },
+      trend: {
+        title: 'Trend — 6 months',
+        expense: 'Expenses',
+        income: 'Income',
+      },
+      topCategoriesTitle: 'Top categories this month',
+      topPercentSuffix: 'of total',
+      insightsTitle: 'Insights',
+      insights: {
+        moreSpent: 'You spent {percent}% more than last month',
+        lessSpent: 'You spent {percent}% less than last month',
+        sameSpent: 'Spending matches last month',
+        topCategory: 'Top category: {label} ({percent}% of spend)',
+        savingsHigh: 'Savings rate is {rate}% — great job!',
+        savingsPositive: 'Savings rate is {rate}%',
+        savingsNegative: 'Expenses exceed income by {rate}%',
+        projection: 'Projected spend: {amount} this month',
+      },
+    },
+    settings: {
+      title: 'Settings',
+      currency: 'Currency',
+      save: 'Save',
+      saved: '✓ Saved',
+      categories: 'Categories',
+      newCategory: 'New category',
+      namePlaceholder: 'Name',
+      typeOptions: {
+        expense: 'Expense',
+        income: 'Income',
+        both: 'Both',
+      },
+      addCategory: '+ Add',
+      budgets: 'Monthly budgets',
+      budgetsHint: 'Leave empty for no limit. Shows as a progress bar on the month view.',
+      data: 'Data',
+      exportCsv: '📤 Export to CSV',
+      importCsv: '📥 Import from CSV',
+      importSuccess: 'Imported {count} transactions',
+      language: 'Language',
+      languageHint: 'Choose your app language',
+      dangerZone: 'Danger zone',
+      deleteData: '🗑 Delete all data',
+      deleteConfirm: 'Are you sure? This action is irreversible.',
+      cancel: 'Cancel',
+      confirmDelete: 'Yes, delete everything',
+      categoryDeleteConfirm: 'Delete category \"{name}\"?',
+    },
+    transactionModal: {
+      editTitle: 'Edit transaction',
+      newTitle: 'New transaction',
+      typeExpense: 'Expense',
+      typeIncome: 'Income',
+      category: 'Category',
+      date: 'Date',
+      note: 'Note (optional)',
+      notePlaceholder: 'Description...',
+      recurring: 'Repeat',
+      recurringOptions: {
+        none: 'No',
+        daily: 'Daily',
+        weekly: 'Weekly',
+        monthly: 'Monthly',
+      },
+      save: 'Add',
+      saving: 'Saving…',
+      saveChanges: 'Save changes',
+      saveError: 'Could not save the transaction. Please try again.',
+    },
+    transactionCard: {
+      delete: '🗑 Delete',
+      deleteTitle: 'Delete',
+      recurringLabel: {
+        daily: 'Daily',
+        weekly: 'Weekly',
+        monthly: 'Monthly',
+      },
+    },
+    toast: {
+      exportEmpty: 'There are no transactions to export.',
+      csvEmpty: 'The CSV is empty or missing data.',
+      csvFormat: 'Format not recognized. Export from this app first.',
+      csvReadError: 'Could not read the file. Make sure it is a valid CSV.',
+    },
+    categoryTypes: {
+      expense: 'Expense',
+      income: 'Income',
+      both: 'Both',
+    },
+  },
+};
+
+export function getTranslations(lang: Language): TranslationCatalog {
+  return TRANSLATIONS[lang];
+}

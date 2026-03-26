@@ -4,6 +4,7 @@ import { StoreService } from '../../core/store.service';
 import { ToastService } from '../../core/toast.service';
 import { Transaction, Category, RecurringInterval } from '../../core/db';
 import { today } from '../../core/utils';
+import { LocalizationService } from '../../core/localization.service';
 
 @Component({
   selector: 'app-transaction-modal',
@@ -30,7 +31,7 @@ import { today } from '../../core/utils';
 
         <!-- Header -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
-          <h2 style="font-size:18px;">{{ editTx() ? 'Editar' : 'Nueva' }} transacción</h2>
+          <h2 style="font-size:18px;">{{ editTx() ? localization.strings().transactionModal.editTitle : localization.strings().transactionModal.newTitle }}</h2>
           <button (click)="close.emit()" style="background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:4px;">✕</button>
         </div>
 
@@ -39,11 +40,11 @@ import { today } from '../../core/utils';
           <button
             (click)="type.set('expense')"
             [style]="type() === 'expense' ? activeTypeStyle('expense') : inactiveTypeStyle"
-          >Gasto</button>
+          >{{ localization.strings().transactionModal.typeExpense }}</button>
           <button
             (click)="type.set('income')"
             [style]="type() === 'income' ? activeTypeStyle('income') : inactiveTypeStyle"
-          >Ingreso</button>
+          >{{ localization.strings().transactionModal.typeIncome }}</button>
         </div>
 
         <!-- Amount -->
@@ -74,7 +75,7 @@ import { today } from '../../core/utils';
         </div>
 
         <!-- Category picker -->
-        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;">Categoría</p>
+        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;">{{ localization.strings().transactionModal.category }}</p>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;">
           @for (cat of visibleCategories(); track cat.id) {
             <button
@@ -88,7 +89,7 @@ import { today } from '../../core/utils';
         </div>
 
         <!-- Date -->
-        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Fecha</p>
+        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">{{ localization.strings().transactionModal.date }}</p>
         <input
           type="date"
           [(ngModel)]="date"
@@ -106,11 +107,11 @@ import { today } from '../../core/utils';
         >
 
         <!-- Note -->
-        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Nota (opcional)</p>
+        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">{{ localization.strings().transactionModal.note }}</p>
         <input
           type="text"
           [(ngModel)]="note"
-          placeholder="Descripción..."
+          placeholder="{{ localization.strings().transactionModal.notePlaceholder }}"
           maxlength="100"
           style="
             width:100%;
@@ -126,9 +127,9 @@ import { today } from '../../core/utils';
         >
 
         <!-- Recurring -->
-        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Repetir</p>
+        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">{{ localization.strings().transactionModal.recurring }}</p>
         <div style="display:flex;gap:8px;margin-bottom:28px;">
-          @for (opt of recurringOptions; track opt.value) {
+          @for (opt of recurringOptions(); track opt.value) {
             <button
               (click)="recurring.set(opt.value)"
               [style]="recurringBtnStyle(opt.value)"
@@ -142,7 +143,7 @@ import { today } from '../../core/utils';
           [disabled]="!canSave() || saving()"
           [style.opacity]="canSave() && !saving() ? 1 : 0.4"
           style="width:100%;padding:16px;border-radius:12px;border:none;font-family:'Syne',sans-serif;font-size:16px;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;"
-        >{{ saving() ? 'Guardando…' : (editTx() ? 'Guardar cambios' : 'Agregar') }}</button>
+        >{{ saving() ? localization.strings().transactionModal.saving : (editTx() ? localization.strings().transactionModal.saveChanges : localization.strings().transactionModal.save) }}</button>
       </div>
     </div>
   `,
@@ -150,6 +151,7 @@ import { today } from '../../core/utils';
 export class TransactionModalComponent implements OnInit {
   readonly store = inject(StoreService);
   private readonly toast = inject(ToastService);
+  readonly localization = inject(LocalizationService);
 
   // Input for editing an existing transaction (null = create new)
   editTx = input<Transaction | null>(null);
@@ -165,12 +167,15 @@ export class TransactionModalComponent implements OnInit {
   note = '';
   recurring = signal<RecurringInterval>('none');
 
-  readonly recurringOptions: { value: RecurringInterval; label: string }[] = [
-    { value: 'none', label: 'No' },
-    { value: 'daily', label: 'Diario' },
-    { value: 'weekly', label: 'Semanal' },
-    { value: 'monthly', label: 'Mensual' },
-  ];
+  readonly recurringOptions = computed((): { value: RecurringInterval; label: string }[] => {
+    const labels = this.localization.strings().transactionModal.recurringOptions;
+    return [
+      { value: 'none' as RecurringInterval, label: labels.none },
+      { value: 'daily', label: labels.daily },
+      { value: 'weekly', label: labels.weekly },
+      { value: 'monthly', label: labels.monthly },
+    ];
+  });
 
   visibleCategories = computed(() =>
     this.type() === 'expense' ? this.store.expenseCategories() : this.store.incomeCategories()
@@ -225,7 +230,7 @@ export class TransactionModalComponent implements OnInit {
       this.saved.emit();
       this.close.emit();
     } catch {
-      this.toast.error('No se pudo guardar la transacción. Inténtalo de nuevo.');
+      this.toast.error(this.localization.strings().transactionModal.saveError);
     } finally {
       this.saving.set(false);
     }
