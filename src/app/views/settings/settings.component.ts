@@ -1,7 +1,8 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { StoreService } from '../../core/store.service';
-import { Category } from '../../core/db';
+import { ToastService } from '../../core/toast.service';
+import { Category, RecurringInterval } from '../../core/db';
 import { generateSlug, exportToCsv, PALETTE } from '../../core/utils';
 
 @Component({
@@ -112,13 +113,22 @@ import { generateSlug, exportToCsv, PALETTE } from '../../core/utils';
         <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;">Deja vacío para sin límite. Se muestra como barra de progreso en la vista mensual.</p>
       </section>
 
-      <!-- Export -->
+      <!-- Data: export + import -->
       <section style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;">
         <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px;">Datos</p>
-        <button
-          (click)="exportCsv()"
-          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;"
-        >📥 Exportar a CSV</button>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button
+            (click)="exportCsv()"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;"
+          >📤 Exportar a CSV</button>
+          <label style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;text-align:center;display:block;">
+            📥 Importar desde CSV
+            <input type="file" accept=".csv" (change)="importCsv($event)" style="display:none;">
+          </label>
+          @if (importResult()) {
+            <p style="font-size:13px;color:var(--income);margin:0;">✓ {{ importResult() }}</p>
+          }
+        </div>
       </section>
 
       <!-- Danger zone -->
@@ -148,9 +158,11 @@ import { generateSlug, exportToCsv, PALETTE } from '../../core/utils';
 })
 export class SettingsComponent implements OnInit {
   readonly store = inject(StoreService);
+  private readonly toast = inject(ToastService);
   readonly palette = PALETTE;
 
   symbolInput = '';
+  importResult = signal('');
   currencySaved = signal(false);
 
   newCatName = '';
@@ -195,15 +207,81 @@ export class SettingsComponent implements OnInit {
 
   async exportCsv(): Promise<void> {
     const txs = await this.store.getAllTransactions();
+    if (!txs.length) { this.toast.show('No hay transacciones para exportar.'); return; }
     const rows = txs.map(t => ({
       fecha: t.date,
       tipo: t.type,
       monto: t.amount,
       categoria: this.store.getCategoryById(t.categoryId)?.name ?? t.categoryId,
       nota: t.note,
+      recurring: t.recurring,
       creado: t.createdAt,
     }));
     exportToCsv(rows, `gastos-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
+
+  async importCsv(event: Event): Promise<void> {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const lines = text.trim().split('\n').filter(l => l.trim());
+      if (lines.length < 2) { this.toast.error('El CSV está vacío o no tiene datos.'); return; }
+
+      const headers = lines[0].split(',').map(h => h.trim());
+      const col = (name: string) => headers.indexOf(name);
+      const iDate = col('fecha'), iType = col('tipo'), iAmount = col('monto');
+      const iCat = col('categoria'), iNote = col('nota'), iRecurring = col('recurring');
+
+      if (iDate < 0 || iType < 0 || iAmount < 0 || iCat < 0) {
+        this.toast.error('Formato no reconocido. Exporta primero desde esta app.');
+        return;
+      }
+
+      let imported = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const cols = this.parseCsvLine(lines[i]);
+        const date = cols[iDate]?.trim();
+        const type = cols[iType]?.trim() as 'expense' | 'income';
+        const amount = parseFloat(cols[iAmount]);
+        const catName = cols[iCat]?.trim() ?? '';
+        const note = cols[iNote]?.trim() ?? '';
+        const recurring = (iRecurring >= 0 ? cols[iRecurring]?.trim() : 'none') as RecurringInterval;
+
+        if (!date || !['expense', 'income'].includes(type) || isNaN(amount) || amount <= 0) continue;
+
+        const cat = this.store.categories().find(c =>
+          c.name.toLowerCase() === catName.toLowerCase() && (c.type === type || c.type === 'both')
+        ) ?? this.store.categories().find(c => c.type === type || c.type === 'both');
+        if (!cat) continue;
+
+        await this.store.addTransaction({
+          amount, type, categoryId: cat.id, note, date,
+          recurring: ['none', 'daily', 'weekly', 'monthly'].includes(recurring) ? recurring : 'none',
+        });
+        imported++;
+      }
+
+      this.importResult.set(`${imported} transacciones importadas`);
+      setTimeout(() => this.importResult.set(''), 4000);
+    } catch {
+      this.toast.error('Error al leer el archivo. Comprueba que es un CSV válido.');
+    } finally {
+      (event.target as HTMLInputElement).value = '';
+    }
+  }
+
+  private parseCsvLine(line: string): string[] {
+    const cols: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') { inQuotes = !inQuotes; }
+      else if (ch === ',' && !inQuotes) { cols.push(current); current = ''; }
+      else { current += ch; }
+    }
+    cols.push(current);
+    return cols;
   }
 
   async onBudgetChange(categoryId: string, event: Event): Promise<void> {

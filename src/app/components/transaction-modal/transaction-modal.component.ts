@@ -1,6 +1,7 @@
 import { Component, inject, input, output, signal, computed, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { StoreService } from '../../core/store.service';
+import { ToastService } from '../../core/toast.service';
 import { Transaction, Category, RecurringInterval } from '../../core/db';
 import { today } from '../../core/utils';
 
@@ -138,16 +139,17 @@ import { today } from '../../core/utils';
         <!-- Save button -->
         <button
           (click)="save()"
-          [disabled]="!canSave()"
-          [style.opacity]="canSave() ? 1 : 0.4"
+          [disabled]="!canSave() || saving()"
+          [style.opacity]="canSave() && !saving() ? 1 : 0.4"
           style="width:100%;padding:16px;border-radius:12px;border:none;font-family:'Syne',sans-serif;font-size:16px;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;"
-        >{{ editTx() ? 'Guardar cambios' : 'Agregar' }}</button>
+        >{{ saving() ? 'Guardando…' : (editTx() ? 'Guardar cambios' : 'Agregar') }}</button>
       </div>
     </div>
   `,
 })
 export class TransactionModalComponent implements OnInit {
   readonly store = inject(StoreService);
+  private readonly toast = inject(ToastService);
 
   // Input for editing an existing transaction (null = create new)
   editTx = input<Transaction | null>(null);
@@ -155,6 +157,7 @@ export class TransactionModalComponent implements OnInit {
   close = output<void>();
   saved = output<void>();
 
+  saving = signal(false);
   type = signal<'expense' | 'income'>('expense');
   amountStr = signal('');
   categoryId = signal('');
@@ -195,24 +198,30 @@ export class TransactionModalComponent implements OnInit {
   }
 
   async save(): Promise<void> {
-    if (!this.canSave()) return;
-    const amount = parseFloat(this.amountStr());
-    const tx = this.editTx();
-
-    if (tx?.id != null) {
-      await this.store.updateTransaction(tx.id, {
-        amount, type: this.type(), categoryId: this.categoryId(),
-        date: this.date, note: this.note, recurring: this.recurring(),
-      });
-    } else {
-      await this.store.addTransaction({
-        amount, type: this.type(), categoryId: this.categoryId(),
-        date: this.date, note: this.note, recurring: this.recurring(),
-      });
+    if (!this.canSave() || this.saving()) return;
+    this.saving.set(true);
+    try {
+      const amount = parseFloat(this.amountStr());
+      const tx = this.editTx();
+      if (tx?.id != null) {
+        await this.store.updateTransaction(tx.id, {
+          amount, type: this.type(), categoryId: this.categoryId(),
+          date: this.date, note: this.note, recurring: this.recurring(),
+        });
+      } else {
+        await this.store.addTransaction({
+          amount, type: this.type(), categoryId: this.categoryId(),
+          date: this.date, note: this.note, recurring: this.recurring(),
+        });
+      }
+      navigator.vibrate?.(10);
+      this.saved.emit();
+      this.close.emit();
+    } catch {
+      this.toast.error('No se pudo guardar la transacción. Inténtalo de nuevo.');
+    } finally {
+      this.saving.set(false);
     }
-    navigator.vibrate?.(10);
-    this.saved.emit();
-    this.close.emit();
   }
 
   onBackdrop(e: MouseEvent): void {
