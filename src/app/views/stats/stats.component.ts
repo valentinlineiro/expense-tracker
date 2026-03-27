@@ -159,6 +159,7 @@ export class StatsComponent implements OnInit {
   readonly store = inject(StoreService);
   readonly fmtAmount = fmtAmount;
   readonly fmtMonthShort = fmtMonthShort;
+  readonly Math = Math;
   readonly localization = inject(LocalizationService);
 
   loading = signal(true);

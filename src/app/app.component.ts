@@ -28,32 +28,37 @@ import { fmtAmount } from './core/utils';
       <div [style]="toastStyle()">{{ toast.message()!.text }}</div>
     }
 
-    <div style="display:flex;justify-content:center;padding:14px 16px 0;">
-      <div style="
-        width:100%;
-        max-width:420px;
-        background:var(--surface);
-        border:1px solid var(--border);
-        border-radius:18px;
-        padding:16px 18px;
-        text-align:center;
-        box-shadow:0 8px 30px rgba(0,0,0,0.08);
-      ">
-        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">
-          {{ localization.strings().globalBalanceLabel }}
-        </div>
-        <div
-          class="mono"
-          [style]="'font-size:32px;font-weight:600;color:' + (store.netBalance() >= 0 ? 'var(--income)' : 'var(--expense)') + ';'"
-        >
-          {{ store.netBalance() >= 0 ? '+' : '−' }}{{ fmtAmount(Math.abs(store.netBalance()), store.currencySymbol()) }}
+    <!-- Page column: balance card pinned top, content fills remaining height -->
+    <div [style]="'display:flex;flex-direction:column;height:100dvh;overflow:hidden;' + (isOffline() ? 'padding-top:34px;' : '')">
+
+      <!-- Balance card -->
+      <div style="display:flex;justify-content:center;padding:14px 16px 0;flex-shrink:0;">
+        <div style="
+          width:100%;
+          max-width:420px;
+          background:var(--surface);
+          border:1px solid var(--border);
+          border-radius:18px;
+          padding:16px 18px;
+          text-align:center;
+        ">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">
+            {{ localization.strings().globalBalanceLabel }}
+          </div>
+          <div
+            class="mono"
+            [style]="'font-size:32px;font-weight:600;color:' + (store.netBalance() >= 0 ? 'var(--income)' : 'var(--expense)') + ';'"
+          >
+            {{ store.netBalance() >= 0 ? '+' : '−' }}{{ fmtAmount(Math.abs(store.netBalance()), store.currencySymbol()) }}
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Main content -->
-    <div [style]="'height:100dvh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom);' + (isOffline() ? 'padding-top:34px;' : '')">
-      <router-outlet />
+      <!-- Main content (scrollable, fills remaining space above fixed nav) -->
+      <div style="flex:1;overflow-y:auto;padding-bottom:calc(72px + env(safe-area-inset-bottom));">
+        <router-outlet />
+      </div>
+
     </div>
 
     <!-- Bottom nav -->
@@ -91,6 +96,7 @@ export class AppComponent implements OnInit {
   readonly localization = inject(LocalizationService);
   readonly toast = inject(ToastService);
   readonly fmtAmount = fmtAmount;
+  readonly Math = Math;
 
   isOffline = signal(!navigator.onLine);
 
