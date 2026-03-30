@@ -44,24 +44,25 @@ npx angular-cli-ghpages --dir=dist/expense-tracker/browser
 src/
 ├── app/
 │   ├── core/
-│   │   ├── db.ts                  # Dexie schema (v2) + queries
+│   │   ├── db.ts                  # Dexie schema (v2) + queries + AppBackup + JSON backup/restore
 │   │   ├── store.service.ts       # Signal-based service — fuente de verdad
-│   │   ├── toast.service.ts       # Toast global (show/error con auto-dismiss)
+│   │   ├── toast.service.ts       # Toast global (show/error/showWithAction con auto-dismiss)
 │   │   ├── localization.service.ts# Idioma activo + strings traducidos
 │   │   ├── translations.ts        # Strings en todos los idiomas soportados
 │   │   ├── locale-config.ts       # Locale activo para date-fns y Intl
-│   │   └── utils.ts               # Formatters, helpers, PALETTE
+│   │   └── utils.ts               # Formatters, helpers, PALETTE, EMOJI_PRESETS
 │   ├── components/
-│   │   ├── transaction-card/      # Swipe-to-delete, edit tap, recurring label
-│   │   ├── transaction-modal/     # Bottom sheet: add/edit, saving state
+│   │   ├── transaction-card/      # Swipe-to-delete, two-step desktop confirm, duplicate, edit tap
+│   │   ├── transaction-modal/     # Bottom sheet: add/edit/duplicate, saving state, default category memory
+│   │   ├── search-overlay/        # Full-screen search: note + category + amount, debounced 300ms
 │   │   ├── category-badge/
 │   │   └── amount-display/
 │   ├── views/
-│   │   ├── today/                 # Balance del día, lista, FAB, shortcut N
+│   │   ├── today/                 # Balance del día, lista, FAB, shortcut N, search toggle
 │   │   ├── month/                 # Selector de mes, budgets, pull-to-refresh
-│   │   ├── stats/                 # KPIs, gráficos, top categorías, insights
-│   │   └── settings/              # Moneda, idioma, categorías, CSV import/export
-│   ├── app.component.ts           # Shell: balance global, offline banner, toast, nav
+│   │   ├── stats/                 # KPIs, YTD, gráficos, top categorías, insights, navegación de mes
+│   │   └── settings/              # Moneda, idioma, categorías+emoji picker, CSV/JSON import/export
+│   ├── app.component.ts           # Shell: balance global, offline banner, toast (con action button), nav
 │   ├── app.routes.ts
 │   └── app.config.ts
 ├── index.html
@@ -90,8 +91,8 @@ Transaction {
 Category {
   id:         string          // slug generado
   name:       string
-  icon:       string          // emoji
-  color:      string          // hex
+  icon:       string          // emoji (seleccionable desde EMOJI_PRESETS)
+  color:      string          // hex (seleccionable desde PALETTE)
   type:       'expense' | 'income' | 'both'
   isDefault:  boolean
   createdAt:  string
@@ -106,8 +107,24 @@ Setting {
   key:   string               // PK
   value: unknown
 }
-// Keys: 'currency', 'currencySymbol', 'monthStartDay', 'language'
+// Keys usadas: 'currency', 'currencySymbol', 'monthStartDay', 'language',
+//              'lastExpenseCategoryId', 'lastIncomeCategoryId'
 ```
+
+### AppBackup (JSON export/import)
+
+```ts
+interface AppBackup {
+  version: 1;
+  exportedAt: string;
+  transactions: Transaction[];
+  categories:   Category[];
+  budgets:      Budget[];
+  settings:     Setting[];
+}
+```
+
+El import usa `bulkPut` para categories/settings/budgets y dedup por `createdAt` para transactions. Tras importar se llama `store.init()` para refrescar todos los signals.
 
 ### Migración v1 → v2
 - Añade tabla `budgets`
@@ -125,10 +142,11 @@ Ingresos: Salario 💼, Freelance 💻, Otros ➕
 2. **Signals, no Observables** — usar `signal()`, `computed()`, `effect()`. Evitar RxJS.
 3. **Standalone components únicamente** — sin NgModules. Cada componente declara sus propios imports.
 4. **Sin prop drilling** — datos compartidos por 2+ componentes van al `StoreService`.
-5. **Soft delete no aplica** — las transacciones se borran definitivamente.
+5. **Soft delete no aplica** — las transacciones se borran definitivamente (con undo por toast).
 6. **Moneda configurable** — nunca hardcodear `€` o `$`. Leer siempre de `store.currencySymbol()`.
 7. **Strings localizados** — nunca hardcodear texto visible al usuario. Usar `localization.strings()`.
-8. **Single quotes en `[style]="..."`** — el parser de Angular falla si el valor contiene comillas simples (e.g. `font-family:'DM Sans'`). Mover la lógica a un método del componente que devuelva el string.
+8. **Single quotes en `[style]="..."`** — el parser de Angular falla si el valor contiene comillas simples (e.g. `font-family:'DM Sans'`). Mover la lógica a un método del componente que devuelva el string completo.
+9. **`Math` en templates** — Angular no expone globals JS en templates. Declarar `readonly Math = Math` en la clase del componente si se necesita `Math.abs()` etc.
 
 ---
 
@@ -165,37 +183,52 @@ budgetMap           // Map<categoryId, monthlyLimit>
 ### App shell (`app.component.ts`)
 - **Balance global** — tarjeta siempre visible con el saldo histórico total (income − expenses)
 - **Offline banner** — banner rojo cuando `navigator.onLine === false`
-- **Toast** — notificaciones dismissibles (neutral / error) via `ToastService`
+- **Toast** — notificaciones con auto-dismiss via `ToastService`; soporta botón de acción inline (usado para undo delete)
 - **Bottom nav** — Hoy / Mes / Stats / Ajustes
 
 ### Today view
 - Balance del día (ingresos − gastos de hoy)
 - Lista de transacciones de hoy, ordenadas por hora desc
 - FAB (+) para agregar
-- Shortcut `N` (teclado) para abrir modal; `Esc` para cerrar
-- Swipe-to-delete en mobile; botón ✕ en desktop
+- Shortcut `N` (teclado) para abrir modal; `Esc` para cerrar o cerrar búsqueda
+- **Botón 🔍** — abre el `SearchOverlayComponent` de pantalla completa
+- Undo delete: snapshot antes de borrar → `toast.showWithAction()` con callback que re-inserta
 
 ### Month view
 - Selector de mes (← →)
 - Resumen: ingresos / gastos / balance del mes
-- Lista de transacciones agrupada por día
+- Lista de transacciones agrupada por día con balance diario
 - **Budget progress bars** — barra por categoría con límite mensual (naranja >80%, rojo >100%)
 - **Pull-to-refresh** — gesture táctil (70px threshold) para recargar datos
+- Undo delete con recarga del mes tras confirmar undo
+- Duplicar transacción (output del card → modal con `duplicateFrom`)
 
 ### Stats view
-- **KPI cards** — tasa de ahorro, gasto medio/día, delta mes-anterior
-- **Doughnut** — gastos por categoría del mes actual
-- **Bar chart** — ingresos vs gastos, últimos 6 meses (agrupado)
+- **Navegación de mes** — ‹ › para explorar meses pasados; todos los KPIs y gráficos reflejan el mes seleccionado
+- **KPI cards** — tasa de ahorro, gasto medio/día (corregido para meses pasados), delta mes-anterior
+- **YTD summary** — 4 tarjetas: ingresos YTD, gastos YTD, ahorro neto YTD, tasa de ahorro YTD
+- **Doughnut** — gastos por categoría del mes seleccionado (título dinámico para meses pasados)
+- **Bar chart** — ingresos vs gastos, ventana de 6 meses relativa al mes seleccionado
 - **Top 3** — categorías con mayor gasto del mes
-- **Perspectivas** — insights automáticos: MoM delta, top categoría, tasa ahorro, proyección de gasto
+- **Perspectivas** — insights automáticos; proyección solo visible en el mes actual
+
+### Search overlay (`search-overlay.component.ts`)
+- Overlay a pantalla completa sobre el contenido
+- Input de búsqueda con debounce de 300ms
+- Filtra en memoria sobre `getAllTransactions()`: coincidencia en nota, nombre de categoría o importe
+- Resultados agrupados por fecha en orden descendente
+- Emite `edit` y `delete` hacia el padre (Today view); undo delete funciona igual
 
 ### Settings view
 - Cambiar símbolo de moneda
-- Cambiar idioma (ES / EN / FR — extensible via `translations.ts`)
-- Gestión de categorías custom (add / delete, no editar las default)
+- Cambiar idioma (ES / EN / FR)
+- Gestión de categorías custom: add / delete (no editar las default)
+  - **Emoji picker** — grid de `EMOJI_PRESETS` (~40 emojis) en lugar de input de texto libre
+  - Color picker (paleta `PALETTE`)
 - **Presupuestos** — límite mensual por categoría de gasto
-- **CSV export** — exporta todas las transacciones (incluye campo `recurring`)
-- **CSV import** — importa un CSV exportado desde la misma app; parsea comillas, valida filas
+- **CSV export/import** — exporta/importa transacciones (incluye campo `recurring`)
+- **JSON export** — descarga `AppBackup` completo (transacciones + categorías + presupuestos + settings)
+- **JSON import** — parsea, valida `version === 1`, dedup por `createdAt`, recarga `store.init()`
 
 ### Transaction modal (bottom sheet)
 - Importe — input numérico grande
@@ -206,6 +239,28 @@ budgetMap           // Map<categoryId, monthlyLimit>
 - Recurrencia — ninguna / diaria / semanal / mensual
 - **Saving state** — botón deshabilitado durante el guardado, previene doble-submit
 - **Haptic feedback** — `navigator.vibrate(10)` al guardar, `(30)` al borrar con swipe
+- **Duplicar** — acepta input `duplicateFrom`; pre-rellena campos con fecha=hoy y recurring=none
+- **Default category memory** — `ensureCategory` effect lee `settings['lastExpense/IncomeCategoryId']`; tras guardar, persiste la categoría usada
+
+### Transaction card
+- Swipe-to-delete en mobile (threshold 80px, haptic 30ms)
+- **Long-press** en mobile (600ms) para duplicar (haptic 50ms)
+- **Two-step delete en desktop** — primer click arma (botón rojo "¿Confirmar?"), segundo confirma; se desarma solo tras 2.5s o click fuera
+- **Botón ⧉** en desktop para duplicar (oculto en touch)
+- Label de recurrencia (↻ Diario/Semanal/Mensual)
+
+---
+
+## ToastService
+
+```ts
+show(text, duration?)            // neutral, auto-dismiss
+error(text, duration?)           // rojo, auto-dismiss
+showWithAction(text, label, cb, duration?)  // con botón de acción inline
+dismiss()                        // cierra inmediatamente
+```
+
+El timer anterior se cancela en cada nueva llamada. `AppComponent.onToastAction()` llama al callback y hace `dismiss()`.
 
 ---
 
@@ -216,6 +271,7 @@ budgetMap           // Map<categoryId, monthlyLimit>
 - **Funciones de DB**: prefijo descriptivo — `getTransactionsByMonth`, `addTransaction`
 - **Formatters en utils.ts**: `fmtAmount(amount, symbol)`, `fmtDate(date)`, `fmtMonth(y, m)`
 - **Colores**: paleta fija en `utils.ts → PALETTE`
+- **Emojis**: lista fija en `utils.ts → EMOJI_PRESETS`
 - **Fechas**: siempre `'YYYY-MM-DD'` como string en DB. Nunca objetos Date en storage.
 - **Amounts**: siempre número positivo en DB. El `type` determina el signo al mostrar.
 
