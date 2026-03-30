@@ -25,7 +25,12 @@ import { fmtAmount } from './core/utils';
 
     <!-- Toast -->
     @if (toast.message()) {
-      <div [style]="toastStyle()">{{ toast.message()!.text }}</div>
+      <div [style]="toastStyle()">
+        <span style="flex:1;">{{ toast.message()!.text }}</span>
+        @if (toast.message()!.action) {
+          <button (click)="onToastAction()" [style]="toastActionBtnStyle()">{{ toast.message()!.action!.label }}</button>
+        }
+      </div>
     }
 
     <!-- Page column: balance card pinned top, content fills remaining height -->
@@ -102,10 +107,19 @@ export class AppComponent implements OnInit {
 
   toastStyle(): string {
     const isError = this.toast.message()?.isError;
-    const base = "position:fixed;bottom:90px;left:16px;right:16px;border-radius:12px;padding:13px 16px;font-size:14px;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,0.4);font-family:'DM Sans',sans-serif;";
+    const base = "position:fixed;bottom:90px;left:16px;right:16px;border-radius:12px;padding:13px 16px;font-size:14px;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,0.4);font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:12px;";
     return isError
       ? base + 'background:#3a1a1a;border:1px solid #ff4d4d;color:#ff9999;'
       : base + 'background:var(--surface);border:1px solid var(--border);color:var(--text);';
+  }
+
+  toastActionBtnStyle(): string {
+    return "background:var(--accent);border:none;border-radius:8px;padding:6px 12px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;font-family:'DM Sans',sans-serif;";
+  }
+
+  onToastAction(): void {
+    this.toast.message()?.action?.callback();
+    this.toast.dismiss();
   }
 
   @HostListener('window:online')

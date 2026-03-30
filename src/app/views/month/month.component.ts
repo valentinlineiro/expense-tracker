@@ -5,6 +5,7 @@ import { fmtAmount, fmtMonth, fmtDateShort, currentYearMonth } from '../../core/
 import { TransactionModalComponent } from '../../components/transaction-modal/transaction-modal.component';
 import { TransactionCardComponent } from '../../components/transaction-card/transaction-card.component';
 import { LocalizationService } from '../../core/localization.service';
+import { ToastService } from '../../core/toast.service';
 
 @Component({
   selector: 'app-month',
@@ -95,6 +96,7 @@ import { LocalizationService } from '../../core/localization.service';
                 [tx]="tx"
                 (edit)="openEdit($event)"
                 (delete)="onDelete($event)"
+                (duplicate)="onDuplicate($event)"
               />
             </div>
           }
@@ -105,6 +107,7 @@ import { LocalizationService } from '../../core/localization.service';
     @if (showModal()) {
       <app-transaction-modal
         [editTx]="editingTx()"
+        [duplicateFrom]="duplicatingTx()"
         (close)="closeModal()"
         (saved)="onSaved()"
       />
@@ -117,6 +120,7 @@ export class MonthComponent implements OnInit {
   readonly fmtMonth = fmtMonth;
   readonly fmtDateShort = fmtDateShort;
   readonly localization = inject(LocalizationService);
+  private readonly toast = inject(ToastService);
 
   year = signal(currentYearMonth().year);
   month = signal(currentYearMonth().month);
@@ -125,6 +129,7 @@ export class MonthComponent implements OnInit {
 
   showModal = signal(false);
   editingTx = signal<Transaction | null>(null);
+  duplicatingTx = signal<Transaction | null>(null);
 
   pulling = signal(false);
   pullReady = signal(false);
@@ -222,9 +227,15 @@ export class MonthComponent implements OnInit {
     this.showModal.set(true);
   }
 
+  onDuplicate(tx: Transaction): void {
+    this.duplicatingTx.set(tx);
+    this.showModal.set(true);
+  }
+
   closeModal(): void {
     this.showModal.set(false);
     this.editingTx.set(null);
+    this.duplicatingTx.set(null);
   }
 
   async onSaved(): Promise<void> {
@@ -232,8 +243,18 @@ export class MonthComponent implements OnInit {
   }
 
   async onDelete(id: number): Promise<void> {
+    const snapshot = this.transactions().find(t => t.id === id);
     await this.store.deleteTransaction(id);
     await this.load();
+    if (snapshot) {
+      const strings = this.localization.strings().toast;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id: _id, createdAt: _ca, ...txData } = snapshot;
+      this.toast.showWithAction(strings.undoDelete, strings.undo, async () => {
+        await this.store.addTransaction(txData);
+        await this.load();
+      });
+    }
   }
 
   @HostListener('touchstart', ['$event'])

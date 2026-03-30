@@ -1,4 +1,4 @@
-import { Component, inject, input, output, signal } from '@angular/core';
+import { Component, inject, input, output, signal, OnInit, HostListener, ElementRef } from '@angular/core';
 import { Transaction } from '../../core/db';
 import { AmountDisplayComponent } from '../amount-display/amount-display.component';
 import { CategoryBadgeComponent } from '../category-badge/category-badge.component';
@@ -47,36 +47,73 @@ const SWIPE_MAX      = 110;   // px max drag
           }
         </div>
 
-        <!-- Right: amount + desktop delete button -->
-        <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
+        <!-- Right: amount + action buttons -->
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
           <app-amount-display [amount]="tx().amount" [type]="tx().type" />
-          <!-- Fallback delete button for non-touch (desktop) -->
+
+          <!-- Duplicate button (desktop) -->
+          @if (!isTouch) {
+            <button
+              (click)="$event.stopPropagation(); duplicate.emit(tx())"
+              [style]="dupBtnStyle()"
+              [title]="localization.strings().transactionCard.duplicate"
+            >⧉</button>
+          }
+
+          <!-- Delete button (desktop, two-step confirm) -->
           <button
-            (click)="$event.stopPropagation(); delete.emit(tx().id!)"
-            style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:4px;opacity:0.5;line-height:1;"
-            title="{{ localization.strings().transactionCard.deleteTitle }}"
-          >✕</button>
+            (click)="deleteArmed() ? onConfirmDelete($event) : armDelete($event)"
+            [style]="deleteButtonStyle()"
+            [title]="deleteArmed() ? '' : localization.strings().transactionCard.deleteTitle"
+          >{{ deleteArmed() ? localization.strings().transactionCard.confirmDelete : '✕' }}</button>
         </div>
       </div>
     </div>
   `,
 })
-export class TransactionCardComponent {
+export class TransactionCardComponent implements OnInit {
   tx = input.required<Transaction>();
   edit = output<Transaction>();
   delete = output<number>();
+  duplicate = output<Transaction>();
+
   readonly localization = inject(LocalizationService);
+  private readonly el = inject(ElementRef);
+
+  isTouch = false;
 
   private startX = 0;
   private dragging = false;
   swipeX = signal(0);
   isSwiping = signal(false);
 
-  cardStyle = () => {
+  deleteArmed = signal(false);
+  private armTimer?: ReturnType<typeof setTimeout>;
+  private longPressTimer?: ReturnType<typeof setTimeout>;
+
+  ngOnInit(): void {
+    this.isTouch = navigator.maxTouchPoints > 0;
+  }
+
+  // ── Styles ──────────────────────────────────────────────────────────────────
+
+  cardStyle(): string {
     const x = this.swipeX();
     const transition = this.isSwiping() ? 'none' : 'transform 0.25s ease';
     return `display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--surface);border-radius:12px;cursor:pointer;transform:translateX(${x}px);transition:${transition};position:relative;z-index:1;`;
-  };
+  }
+
+  deleteButtonStyle(): string {
+    return this.deleteArmed()
+      ? 'background:none;border:1px solid var(--expense);border-radius:6px;color:var(--expense);cursor:pointer;font-size:11px;padding:3px 6px;white-space:nowrap;line-height:1.4;font-family:inherit;'
+      : 'background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:4px;opacity:0.5;line-height:1;';
+  }
+
+  dupBtnStyle(): string {
+    return 'background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:4px;opacity:0.5;line-height:1;';
+  }
+
+  // ── Recurring label ──────────────────────────────────────────────────────────
 
   recurringLabel(): string {
     const rec = this.tx().recurring;
@@ -85,24 +122,32 @@ export class TransactionCardComponent {
     return map[rec] ?? '';
   }
 
+  // ── Swipe to delete (mobile) ─────────────────────────────────────────────────
+
   onTouchStart(e: TouchEvent): void {
     this.startX = e.touches[0].clientX;
     this.dragging = true;
     this.isSwiping.set(true);
+    // Long-press to duplicate
+    this.longPressTimer = setTimeout(() => {
+      navigator.vibrate?.(50);
+      this.duplicate.emit(this.tx());
+    }, 600);
   }
 
   onTouchMove(e: TouchEvent): void {
     if (!this.dragging) return;
     const dx = e.touches[0].clientX - this.startX;
-    // Only allow left swipe, capped at max
+    // Any movement cancels long-press
+    if (Math.abs(dx) > 8) clearTimeout(this.longPressTimer);
     this.swipeX.set(Math.min(0, Math.max(-SWIPE_MAX, dx)));
   }
 
   onTouchEnd(): void {
+    clearTimeout(this.longPressTimer);
     this.dragging = false;
     this.isSwiping.set(false);
     if (this.swipeX() <= -SWIPE_THRESHOLD) {
-      // Animate fully then emit
       navigator.vibrate?.(30);
       this.swipeX.set(-SWIPE_MAX);
       setTimeout(() => {
@@ -111,6 +156,31 @@ export class TransactionCardComponent {
       }, 180);
     } else {
       this.swipeX.set(0);
+    }
+  }
+
+  // ── Two-step desktop delete ──────────────────────────────────────────────────
+
+  armDelete(event: MouseEvent): void {
+    event.stopPropagation();
+    clearTimeout(this.armTimer);
+    this.deleteArmed.set(true);
+    this.armTimer = setTimeout(() => this.deleteArmed.set(false), 2500);
+  }
+
+  onConfirmDelete(event: MouseEvent): void {
+    event.stopPropagation();
+    clearTimeout(this.armTimer);
+    this.deleteArmed.set(false);
+    this.delete.emit(this.tx().id!);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(e: MouseEvent): void {
+    if (!this.deleteArmed()) return;
+    if (!this.el.nativeElement.contains(e.target)) {
+      clearTimeout(this.armTimer);
+      this.deleteArmed.set(false);
     }
   }
 }

@@ -175,3 +175,52 @@ export async function getAllSettings(): Promise<Record<string, unknown>> {
   const rows = await db.settings.toArray();
   return Object.fromEntries(rows.map(r => [r.key, r.value]));
 }
+
+// ── Year query ────────────────────────────────────────────────────────────────
+
+export async function getTransactionsByYear(year: number): Promise<Transaction[]> {
+  const prefix = `${year}-`;
+  return db.transactions.filter(t => t.date.startsWith(prefix)).toArray();
+}
+
+// ── JSON backup / restore ─────────────────────────────────────────────────────
+
+export interface AppBackup {
+  version: 1;
+  exportedAt: string;
+  transactions: Transaction[];
+  categories: Category[];
+  budgets: Budget[];
+  settings: Setting[];
+}
+
+export async function exportAllData(): Promise<AppBackup> {
+  const [transactions, categories, budgets, settings] = await Promise.all([
+    db.transactions.toArray(),
+    db.categories.toArray(),
+    db.budgets.toArray(),
+    db.settings.toArray(),
+  ]);
+  return { version: 1, exportedAt: new Date().toISOString(), transactions, categories, budgets, settings };
+}
+
+export async function importAllData(backup: AppBackup): Promise<{ count: number }> {
+  if (backup.version !== 1 || !Array.isArray(backup.transactions)) {
+    throw new Error('Invalid backup format');
+  }
+  await db.transaction('rw', db.transactions, db.categories, db.budgets, db.settings, async () => {
+    if (backup.categories?.length) await db.categories.bulkPut(backup.categories);
+    if (backup.settings?.length)   await db.settings.bulkPut(backup.settings);
+    if (backup.budgets?.length)    await db.budgets.bulkPut(backup.budgets);
+    for (const tx of backup.transactions) {
+      const { id, ...txData } = tx;
+      void id; // strip auto-increment id
+      const existing = await db.transactions
+        .where('date').equals(tx.date)
+        .filter(t => t.createdAt === tx.createdAt)
+        .first();
+      if (!existing) await db.transactions.add(txData);
+    }
+  });
+  return { count: backup.transactions.length };
+}

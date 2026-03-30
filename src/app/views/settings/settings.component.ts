@@ -3,7 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { StoreService } from '../../core/store.service';
 import { ToastService } from '../../core/toast.service';
 import { Category, RecurringInterval } from '../../core/db';
-import { generateSlug, exportToCsv, PALETTE } from '../../core/utils';
+import { generateSlug, exportToCsv, PALETTE, EMOJI_PRESETS } from '../../core/utils';
+import { exportAllData, importAllData, AppBackup } from '../../core/db';
 import { LocalizationService } from '../../core/localization.service';
 import { Language } from '../../core/locale-config';
 
@@ -79,8 +80,24 @@ import { Language } from '../../core/locale-config';
         <!-- Add category form -->
           <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
           <p style="font-size:13px;color:var(--text-muted);margin:0 0 10px;">{{ localization.strings().settings.newCategory }}</p>
-          <div style="display:flex;gap:8px;margin-bottom:8px;">
-            <input [(ngModel)]="newCatIcon" maxlength="2" placeholder="🏷" style="width:50px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-size:18px;">
+          <div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start;">
+            <!-- Emoji picker trigger -->
+            <div style="position:relative;">
+              <button
+                (click)="iconPickerOpen.set(!iconPickerOpen())"
+                style="width:50px;height:38px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px;color:var(--text);font-size:20px;cursor:pointer;"
+              >{{ newCatIcon || '🏷' }}</button>
+              @if (iconPickerOpen()) {
+                <div style="position:absolute;top:44px;left:0;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;flex-wrap:wrap;gap:6px;width:220px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+                  @for (emoji of emojiPresets; track emoji) {
+                    <button
+                      (click)="newCatIcon = emoji; iconPickerOpen.set(false)"
+                      [style]="emojiBtnStyle(emoji)"
+                    >{{ emoji }}</button>
+                  }
+                </div>
+              }
+            </div>
             <input [(ngModel)]="newCatName" placeholder="{{ localization.strings().settings.namePlaceholder }}" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'DM Sans',sans-serif;">
           </div>
           <div style="display:flex;gap:8px;margin-bottom:10px;">
@@ -143,6 +160,14 @@ import { Language } from '../../core/locale-config';
             {{ localization.strings().settings.importCsv }}
             <input type="file" accept=".csv" (change)="importCsv($event)" style="display:none;">
           </label>
+          <button
+            (click)="exportJson()"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;"
+          >{{ localization.strings().settings.exportJson }}</button>
+          <label style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;text-align:center;display:block;">
+            {{ localization.strings().settings.importJson }}
+            <input type="file" accept=".json" (change)="importJson($event)" style="display:none;">
+          </label>
           @if (importResult()) {
             <p style="font-size:13px;color:var(--income);margin:0;">✓ {{ importResult() }}</p>
           }
@@ -179,6 +204,7 @@ export class SettingsComponent implements OnInit {
   private readonly toast = inject(ToastService);
   readonly localization = inject(LocalizationService);
   readonly palette = PALETTE;
+  readonly emojiPresets = EMOJI_PRESETS;
 
   symbolInput = '';
   importResult = signal('');
@@ -188,8 +214,14 @@ export class SettingsComponent implements OnInit {
   newCatIcon = '';
   newCatType: 'expense' | 'income' | 'both' = 'expense';
   newCatColor = PALETTE[0];
+  iconPickerOpen = signal(false);
 
   confirmDelete = signal(false);
+
+  emojiBtnStyle(emoji: string): string {
+    const selected = this.newCatIcon === emoji;
+    return `background:${selected ? 'var(--accent)22' : 'none'};border:1px solid ${selected ? 'var(--accent)' : 'transparent'};border-radius:6px;padding:4px;font-size:18px;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;`;
+  }
 
   ngOnInit(): void {
     this.symbolInput = this.store.currencySymbol();
@@ -325,6 +357,38 @@ export class SettingsComponent implements OnInit {
     await db.settings.clear();
     // Re-init will re-seed on next open; just reload
     window.location.reload();
+  }
+
+  async exportJson(): Promise<void> {
+    const backup = await exportAllData();
+    const json = JSON.stringify(backup, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `expense-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async importJson(event: Event): Promise<void> {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text) as AppBackup;
+      const result = await importAllData(backup);
+      await this.store.init();
+      this.importResult.set(this.localization.interpolate(
+        this.localization.strings().settings.importJsonSuccess,
+        { count: result.count }
+      ));
+      setTimeout(() => this.importResult.set(''), 4000);
+    } catch {
+      this.toast.error(this.localization.strings().toast.jsonImportError);
+    } finally {
+      (event.target as HTMLInputElement).value = '';
+    }
   }
 
   languageBtnStyle(value: Language): string {

@@ -155,6 +155,8 @@ export class TransactionModalComponent implements OnInit {
 
   // Input for editing an existing transaction (null = create new)
   editTx = input<Transaction | null>(null);
+  // Input for duplicating a transaction (pre-fills fields, date = today, recurring = none)
+  duplicateFrom = input<Transaction | null>(null);
 
   close = output<void>();
   saved = output<void>();
@@ -183,8 +185,13 @@ export class TransactionModalComponent implements OnInit {
 
   readonly ensureCategory = effect(() => {
     const cats = this.visibleCategories();
-    if (!this.categoryId() && cats.length) {
-      this.categoryId.set(cats[0].id);
+    if (!cats.length) return;
+    // If current categoryId is missing or not in the visible list, pick the saved default or first
+    if (!this.categoryId() || !cats.find(c => c.id === this.categoryId())) {
+      const key = this.type() === 'expense' ? 'lastExpenseCategoryId' : 'lastIncomeCategoryId';
+      const saved = this.store.settings()[key] as string | undefined;
+      const validSaved = saved && cats.find(c => c.id === saved);
+      this.categoryId.set(validSaved ? saved : cats[0].id);
     }
   });
 
@@ -195,6 +202,7 @@ export class TransactionModalComponent implements OnInit {
 
   ngOnInit(): void {
     const tx = this.editTx();
+    const src = this.duplicateFrom();
     if (tx) {
       this.type.set(tx.type);
       this.amountStr.set(String(tx.amount));
@@ -202,11 +210,16 @@ export class TransactionModalComponent implements OnInit {
       this.date = tx.date;
       this.note = tx.note;
       this.recurring.set(tx.recurring ?? 'none');
-    } else {
-      // Default category to first available
-      const cats = this.store.expenseCategories();
-      if (cats.length) this.categoryId.set(cats[0].id);
+    } else if (src) {
+      // Duplicate: copy fields but reset date to today and clear recurring
+      this.type.set(src.type);
+      this.amountStr.set(String(src.amount));
+      this.categoryId.set(src.categoryId);
+      this.date = today();
+      this.note = src.note;
+      this.recurring.set('none');
     }
+    // ensureCategory effect handles default selection using saved preference
   }
 
   async save(): Promise<void> {
@@ -226,6 +239,9 @@ export class TransactionModalComponent implements OnInit {
           date: this.date, note: this.note, recurring: this.recurring(),
         });
       }
+      // Persist last-used category for this type
+      const prefKey = this.type() === 'expense' ? 'lastExpenseCategoryId' : 'lastIncomeCategoryId';
+      void this.store.updateSetting(prefKey, this.categoryId());
       navigator.vibrate?.(10);
       this.saved.emit();
       this.close.emit();

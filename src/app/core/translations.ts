@@ -47,6 +47,7 @@ export interface TranslationCatalog {
     };
     donut: {
       title: string;
+      titleMonth: string;
       empty: string;
     };
     trend: {
@@ -66,6 +67,13 @@ export interface TranslationCatalog {
       savingsPositive: string;
       savingsNegative: string;
       projection: string;
+    };
+    ytd: {
+      title: string;
+      income: string;
+      expense: string;
+      net: string;
+      rate: string;
     };
   };
   settings: {
@@ -88,6 +96,9 @@ export interface TranslationCatalog {
     exportCsv: string;
     importCsv: string;
     importSuccess: string;
+    exportJson: string;
+    importJson: string;
+    importJsonSuccess: string;
     language: string;
     languageHint: string;
     dangerZone: string;
@@ -121,6 +132,8 @@ export interface TranslationCatalog {
   transactionCard: {
     delete: string;
     deleteTitle: string;
+    confirmDelete: string;
+    duplicate: string;
     recurringLabel: {
       daily: string;
       weekly: string;
@@ -132,6 +145,14 @@ export interface TranslationCatalog {
     csvEmpty: string;
     csvFormat: string;
     csvReadError: string;
+    undoDelete: string;
+    undo: string;
+    jsonImportError: string;
+  };
+  search: {
+    placeholder: string;
+    noResults: string;
+    results: string;
   };
   categoryTypes: {
     expense: string;
@@ -188,6 +209,7 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       },
       donut: {
         title: 'Gastos por categoría — este mes',
+        titleMonth: 'Gastos por categoría — {month}',
         empty: 'Sin gastos este mes',
       },
       trend: {
@@ -207,6 +229,13 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
         savingsPositive: 'Tasa de ahorro del {rate}%',
         savingsNegative: 'Los gastos superan los ingresos en un {rate}%',
         projection: 'Proyección de gasto: {amount} este mes',
+      },
+      ytd: {
+        title: 'Año hasta hoy',
+        income: 'Ingresos YTD',
+        expense: 'Gastos YTD',
+        net: 'Ahorro neto YTD',
+        rate: 'Tasa de ahorro YTD',
       },
     },
     settings: {
@@ -229,6 +258,9 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       exportCsv: '📤 Exportar a CSV',
       importCsv: '📥 Importar desde CSV',
       importSuccess: '{count} transacciones importadas',
+      exportJson: '💾 Exportar copia de seguridad (JSON)',
+      importJson: '📂 Importar copia de seguridad (JSON)',
+      importJsonSuccess: '{count} registros importados',
       language: 'Idioma',
       languageHint: 'Selecciona el idioma de la app',
       dangerZone: 'Zona peligrosa',
@@ -262,6 +294,8 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
     transactionCard: {
       delete: '🗑 Eliminar',
       deleteTitle: 'Eliminar',
+      confirmDelete: '¿Confirmar?',
+      duplicate: 'Duplicar',
       recurringLabel: {
         daily: 'Diario',
         weekly: 'Semanal',
@@ -273,6 +307,14 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       csvEmpty: 'El CSV está vacío o no tiene datos.',
       csvFormat: 'Formato no reconocido. Exporta primero desde esta app.',
       csvReadError: 'Error al leer el archivo. Comprueba que es un CSV válido.',
+      undoDelete: 'Transacción eliminada',
+      undo: 'Deshacer',
+      jsonImportError: 'Archivo inválido. Asegúrate de que fue exportado desde esta app.',
+    },
+    search: {
+      placeholder: 'Buscar transacciones…',
+      noResults: 'Sin resultados para "{query}"',
+      results: '{count} resultados',
     },
     categoryTypes: {
       expense: 'Gasto',
@@ -327,6 +369,7 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       },
       donut: {
         title: 'Expenses by category — this month',
+        titleMonth: 'Expenses by category — {month}',
         empty: 'No expenses this month',
       },
       trend: {
@@ -346,6 +389,13 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
         savingsPositive: 'Savings rate is {rate}%',
         savingsNegative: 'Expenses exceed income by {rate}%',
         projection: 'Projected spend: {amount} this month',
+      },
+      ytd: {
+        title: 'Year to Date',
+        income: 'Income YTD',
+        expense: 'Expenses YTD',
+        net: 'Net Savings YTD',
+        rate: 'Savings Rate YTD',
       },
     },
     settings: {
@@ -368,6 +418,9 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       exportCsv: '📤 Export to CSV',
       importCsv: '📥 Import from CSV',
       importSuccess: 'Imported {count} transactions',
+      exportJson: '💾 Export backup (JSON)',
+      importJson: '📂 Import backup (JSON)',
+      importJsonSuccess: '{count} records imported',
       language: 'Language',
       languageHint: 'Choose your app language',
       dangerZone: 'Danger zone',
@@ -401,6 +454,8 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
     transactionCard: {
       delete: '🗑 Delete',
       deleteTitle: 'Delete',
+      confirmDelete: 'Confirm?',
+      duplicate: 'Duplicate',
       recurringLabel: {
         daily: 'Daily',
         weekly: 'Weekly',
@@ -412,6 +467,14 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       csvEmpty: 'The CSV is empty or missing data.',
       csvFormat: 'Format not recognized. Export from this app first.',
       csvReadError: 'Could not read the file. Make sure it is a valid CSV.',
+      undoDelete: 'Transaction deleted',
+      undo: 'Undo',
+      jsonImportError: 'Invalid backup file. Make sure it was exported from this app.',
+    },
+    search: {
+      placeholder: 'Search transactions…',
+      noResults: 'No results for "{query}"',
+      results: '{count} results',
     },
     categoryTypes: {
       expense: 'Expense',
