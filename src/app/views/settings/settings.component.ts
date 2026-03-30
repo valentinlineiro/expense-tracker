@@ -1,5 +1,6 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { StoreService } from '../../core/store.service';
 import { ToastService } from '../../core/toast.service';
 import { Category, RecurringInterval } from '../../core/db';
@@ -55,6 +56,24 @@ import { Language } from '../../core/locale-config';
           }
         </div>
         <p style="font-size:11px;color:var(--text-muted);margin:0;">{{ localization.strings().settings.languageHint }}</p>
+      </section>
+
+      <!-- Wallets -->
+      <section style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;">
+        <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px;">{{ localization.strings().settings.wallets }}</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;gap:8px;">
+            @for (wallet of store.wallets(); track wallet.id) {
+              <div style="display:flex;align-items:center;gap:4px;" [title]="wallet.name">
+                <div [style]="'width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;background:' + wallet.color + '22;'">{{ wallet.icon }}</div>
+              </div>
+            }
+          </div>
+          <button
+            (click)="goToWallets()"
+            style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;"
+          >{{ localization.strings().settings.manageWallets }}</button>
+        </div>
       </section>
 
       <!-- Categories -->
@@ -203,6 +222,7 @@ export class SettingsComponent implements OnInit {
   readonly store = inject(StoreService);
   private readonly toast = inject(ToastService);
   readonly localization = inject(LocalizationService);
+  private readonly router = inject(Router);
   readonly palette = PALETTE;
   readonly emojiPresets = EMOJI_PRESETS;
 
@@ -225,6 +245,10 @@ export class SettingsComponent implements OnInit {
 
   ngOnInit(): void {
     this.symbolInput = this.store.currencySymbol();
+  }
+
+  goToWallets(): void {
+    this.router.navigate(['/wallets']);
   }
 
   async saveCurrency(): Promise<void> {

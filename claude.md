@@ -74,18 +74,28 @@ src/
 
 ## Modelo de datos (IndexedDB via Dexie)
 
-### Schema actual — versión 2
+### Schema actual — versión 3
 
 ```ts
 Transaction {
-  id?:        number          // autoincrement
-  amount:     number          // siempre positivo
-  type:       'expense' | 'income'
-  categoryId: string          // ref a categories
-  note:       string
-  date:       string          // 'YYYY-MM-DD'
-  createdAt:  string          // ISO string
-  recurring:  'none' | 'daily' | 'weekly' | 'monthly'
+  id?:               number          // autoincrement
+  amount:            number          // siempre positivo
+  type:              'expense' | 'income'
+  categoryId:        string          // ref a categories
+  note:              string
+  date:              string          // 'YYYY-MM-DD'
+  createdAt:         string          // ISO string
+  recurring:         'none' | 'daily' | 'weekly' | 'monthly'
+  recurringEndDate?: string          // 'YYYY-MM-DD' — la serie para tras esta fecha
+  walletId?:         number          // ref a wallets
+}
+
+Wallet {
+  id?:       number
+  name:      string
+  icon:      string          // emoji
+  color:     string          // hex
+  createdAt: string
 }
 
 Category {
@@ -115,20 +125,21 @@ Setting {
 
 ```ts
 interface AppBackup {
-  version: 1;
-  exportedAt: string;
+  version:      1 | 2;        // v2 incluye wallets
+  exportedAt:   string;
   transactions: Transaction[];
   categories:   Category[];
   budgets:      Budget[];
   settings:     Setting[];
+  wallets?:     Wallet[];      // presente desde v2
 }
 ```
 
-El import usa `bulkPut` para categories/settings/budgets y dedup por `createdAt` para transactions. Tras importar se llama `store.init()` para refrescar todos los signals.
+El import usa `bulkPut` para categories/settings/budgets/wallets y dedup por `createdAt` para transactions. Acepta backups v1 y v2. Tras importar se llama `store.init()` para refrescar todos los signals.
 
-### Migración v1 → v2
-- Añade tabla `budgets`
-- Backfill `recurring: 'none'` en transacciones existentes
+### Historial de migraciones
+- **v1 → v2**: añade tabla `budgets`; backfill `recurring: 'none'` en transacciones existentes
+- **v2 → v3**: añade tabla `wallets` + índice `walletId` en transactions; inserta wallet "Cash 💰" por defecto; backfill `walletId` en todas las transacciones existentes; `recurringEndDate` no requiere backfill (campo opcional)
 
 ### Categorías default (precargadas al primer boot)
 Gastos: Comida 🍔, Transporte 🚗, Casa 🏠, Salud 💊, Ocio 🎬, Ropa 👕, Otros 📦
@@ -158,7 +169,8 @@ transactions  = signal<Transaction[]>([]);   // solo las de hoy
 categories    = signal<Category[]>([]);
 settings      = signal<Record<string, unknown>>({});
 budgets       = signal<Budget[]>([]);
-netBalance    = signal<number>(0);           // suma histórica: ingresos - gastos
+wallets       = signal<Wallet[]>([]);
+netBalance    = signal<number>(0);           // suma histórica: ingresos - gastos (todas las wallets)
 
 // Computed
 currencySymbol      // de settings
@@ -174,7 +186,8 @@ budgetMap           // Map<categoryId, monthlyLimit>
 `checkRecurring()` se ejecuta al init y a las 00:00:10 cada día:
 - Lee todas las transacciones con `recurring !== 'none'`
 - Calcula instancias pendientes con `getDueDates()` usando `addInterval()`
-- Crea las instancias que falten hasta hoy
+- Respeta `recurringEndDate`: si la instancia a crear supera esa fecha, corta la serie
+- Al crear instancias hereda `walletId` y `recurringEndDate` de la plantilla
 
 ---
 
@@ -219,8 +232,15 @@ budgetMap           // Map<categoryId, monthlyLimit>
 - Resultados agrupados por fecha en orden descendente
 - Emite `edit` y `delete` hacia el padre (Today view); undo delete funciona igual
 
+### Wallets view (`/wallets`, accesible desde Settings)
+- Lista de wallets con saldo en tiempo real (`getWalletBalances()` — un pase sobre todas las transacciones)
+- Añadir / editar wallet: emoji picker + color picker + preview en vivo
+- Eliminar wallet con confirmación; no permite eliminar la última
+- Al crear una wallet nueva el saldo arranca en 0
+
 ### Settings view
 - Cambiar símbolo de moneda
+- Sección Wallets — muestra los iconos de las wallets activas + botón "Gestionar billeteras →" que navega a `/wallets`
 - Cambiar idioma (ES / EN / FR)
 - Gestión de categorías custom: add / delete (no editar las default)
   - **Emoji picker** — grid de `EMOJI_PRESETS` (~40 emojis) en lugar de input de texto libre
@@ -237,6 +257,8 @@ budgetMap           // Map<categoryId, monthlyLimit>
 - Fecha (por defecto hoy, editable)
 - Nota opcional
 - Recurrencia — ninguna / diaria / semanal / mensual
+- **Fecha de fin de recurrencia** — aparece si la recurrencia es distinta de "ninguna"; deja vacía para serie indefinida
+- **Selector de wallet** — chips horizontal con icono + nombre; solo visible cuando hay 2+ wallets; hereda wallet del tx editado/duplicado, o la primera wallet por defecto
 - **Saving state** — botón deshabilitado durante el guardado, previene doble-submit
 - **Haptic feedback** — `navigator.vibrate(10)` al guardar, `(30)` al borrar con swipe
 - **Duplicar** — acepta input `duplicateFrom`; pre-rellena campos con fecha=hoy y recurring=none

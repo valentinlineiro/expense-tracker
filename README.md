@@ -11,14 +11,23 @@ Personal expense tracker. Offline-first, no account, no backend — all data liv
 - **Stats** — KPI cards, spending doughnut, 6-month income vs expense trend, top categories, auto-generated insights, year-to-date summary, past-month browsing
 - **Settings** — currency symbol, language, custom categories with emoji picker, monthly budgets
 
+### Wallets
+- Multiple wallets (Cash, Card, Savings, etc.) each with a custom icon and colour
+- Per-wallet balance shown in the Wallets view (Settings → Manage wallets)
+- Every transaction is assigned to a wallet; the selector appears in the modal when 2+ wallets exist
+- Existing users are migrated automatically — all prior transactions move to a default "Cash" wallet
+- JSON backup includes wallets (backup format v2); import handles both v1 and v2
+
 ### Transactions
 - Add income or expense with amount, category, date, and optional note
+- Assign to a wallet when multiple wallets are configured
 - Edit any transaction by tapping it
 - Delete by swiping left on mobile, or via the ✕ button on desktop
 - **Undo delete** — a toast with an "Undo" button appears for 4.5 seconds after any deletion
 - **Desktop delete confirmation** — ✕ requires two clicks (arm → confirm) with auto-disarm after 2.5s
 - **Duplicate** — long-press on mobile or ⧉ icon on desktop to clone a transaction with today's date
 - **Recurring transactions** — mark as daily / weekly / monthly; instances auto-created on app load
+- **Recurring end date** — optionally set a stop date for any recurring series
 - **Default category memory** — the modal remembers the last-used category per type (income/expense)
 - **Haptic feedback** on save and delete (Vibration API)
 
@@ -42,8 +51,8 @@ Personal expense tracker. Offline-first, no account, no backend — all data liv
 ### Data Portability
 - **Export to CSV** — all transactions including recurring field
 - **Import from CSV** — re-import a previously exported file; validates rows, matches categories by name
-- **Export to JSON** — full backup: transactions, categories, budgets, and settings
-- **Import from JSON** — restore a backup with `createdAt`-based dedup; refreshes all app state on completion
+- **Export to JSON** — full backup: transactions, categories, budgets, settings, and wallets (v2 format)
+- **Import from JSON** — restore a backup with `createdAt`-based dedup; handles v1 and v2 formats; refreshes all app state on completion
 
 ### Reliability
 - **Offline banner** — shown when the device loses connectivity

@@ -6,5 +6,6 @@ export const routes: Routes = [
   { path: 'month', loadComponent: () => import('./views/month/month.component').then(m => m.MonthComponent) },
   { path: 'stats', loadComponent: () => import('./views/stats/stats.component').then(m => m.StatsComponent) },
   { path: 'settings', loadComponent: () => import('./views/settings/settings.component').then(m => m.SettingsComponent) },
+  { path: 'wallets', loadComponent: () => import('./views/wallets/wallets.component').then(m => m.WalletsComponent) },
   { path: '**', redirectTo: 'today' },
 ];

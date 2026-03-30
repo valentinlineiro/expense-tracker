@@ -11,6 +11,16 @@ export interface Transaction {
   date: string;           // 'YYYY-MM-DD'
   createdAt: string;      // ISO string
   recurring: RecurringInterval;
+  recurringEndDate?: string; // 'YYYY-MM-DD' — stop auto-creating after this date
+  walletId?: number;
+}
+
+export interface Wallet {
+  id?: number;
+  name: string;
+  icon: string;           // emoji
+  color: string;          // hex
+  createdAt: string;
 }
 
 export interface Category {
@@ -57,6 +67,7 @@ class AppDatabase extends Dexie {
   categories!: Table<Category, string>;
   settings!: Table<Setting, string>;
   budgets!: Table<Budget, string>;
+  wallets!: Table<Wallet, number>;
 
   constructor() {
     super('expense-tracker-db');
@@ -74,9 +85,29 @@ class AppDatabase extends Dexie {
       settings: 'key',
       budgets: 'categoryId',
     }).upgrade(tx => {
-      // Backfill recurring field for existing transactions
       return tx.table('transactions').toCollection().modify(t => {
         if (t.recurring === undefined) t.recurring = 'none';
+      });
+    });
+
+    // Version 3: adds wallets table + walletId index on transactions
+    // recurringEndDate is optional — no backfill needed
+    this.version(3).stores({
+      transactions: '++id, date, type, categoryId, walletId',
+      categories: 'id, type',
+      settings: 'key',
+      budgets: 'categoryId',
+      wallets: '++id',
+    }).upgrade(async tx => {
+      const now = new Date().toISOString();
+      const walletId = await tx.table('wallets').add({
+        name: 'Cash',
+        icon: '💰',
+        color: '#4dff91',
+        createdAt: now,
+      });
+      await tx.table('transactions').toCollection().modify((t: Transaction) => {
+        if (t.walletId === undefined) t.walletId = walletId as number;
       });
     });
 
@@ -86,6 +117,8 @@ class AppDatabase extends Dexie {
         DEFAULT_CATEGORIES.map(c => ({ ...c, createdAt: now }))
       );
       await this.settings.bulkAdd(DEFAULT_SETTINGS);
+      // Default wallet for new installations
+      await this.wallets.add({ name: 'Cash', icon: '💰', color: '#4dff91', createdAt: now });
     });
   }
 }
@@ -130,6 +163,35 @@ export async function updateTransaction(id: number, data: Partial<Omit<Transacti
 
 export async function deleteTransaction(id: number): Promise<void> {
   await db.transactions.delete(id);
+}
+
+// ── Wallets ───────────────────────────────────────────────────────────────────
+
+export async function getAllWallets(): Promise<Wallet[]> {
+  return db.wallets.toArray();
+}
+
+export async function addWallet(data: Omit<Wallet, 'id' | 'createdAt'>): Promise<number> {
+  return db.wallets.add({ ...data, createdAt: new Date().toISOString() });
+}
+
+export async function updateWallet(id: number, data: Partial<Omit<Wallet, 'id'>>): Promise<void> {
+  await db.wallets.update(id, data);
+}
+
+export async function deleteWallet(id: number): Promise<void> {
+  await db.wallets.delete(id);
+}
+
+export async function getWalletBalances(): Promise<Map<number, number>> {
+  const txs = await db.transactions.toArray();
+  const balances = new Map<number, number>();
+  for (const tx of txs) {
+    if (tx.walletId === undefined) continue;
+    const current = balances.get(tx.walletId) ?? 0;
+    balances.set(tx.walletId, current + (tx.type === 'income' ? tx.amount : -tx.amount));
+  }
+  return balances;
 }
 
 // ── Categories ────────────────────────────────────────────────────────────────
@@ -186,35 +248,38 @@ export async function getTransactionsByYear(year: number): Promise<Transaction[]
 // ── JSON backup / restore ─────────────────────────────────────────────────────
 
 export interface AppBackup {
-  version: 1;
+  version: 1 | 2;
   exportedAt: string;
   transactions: Transaction[];
   categories: Category[];
   budgets: Budget[];
   settings: Setting[];
+  wallets?: Wallet[];
 }
 
 export async function exportAllData(): Promise<AppBackup> {
-  const [transactions, categories, budgets, settings] = await Promise.all([
+  const [transactions, categories, budgets, settings, wallets] = await Promise.all([
     db.transactions.toArray(),
     db.categories.toArray(),
     db.budgets.toArray(),
     db.settings.toArray(),
+    db.wallets.toArray(),
   ]);
-  return { version: 1, exportedAt: new Date().toISOString(), transactions, categories, budgets, settings };
+  return { version: 2, exportedAt: new Date().toISOString(), transactions, categories, budgets, settings, wallets };
 }
 
 export async function importAllData(backup: AppBackup): Promise<{ count: number }> {
-  if (backup.version !== 1 || !Array.isArray(backup.transactions)) {
+  if (!backup.version || !Array.isArray(backup.transactions)) {
     throw new Error('Invalid backup format');
   }
-  await db.transaction('rw', db.transactions, db.categories, db.budgets, db.settings, async () => {
+  await db.transaction('rw', [db.transactions, db.categories, db.budgets, db.settings, db.wallets], async () => {
+    if (backup.wallets?.length)    await db.wallets.bulkPut(backup.wallets);
     if (backup.categories?.length) await db.categories.bulkPut(backup.categories);
     if (backup.settings?.length)   await db.settings.bulkPut(backup.settings);
     if (backup.budgets?.length)    await db.budgets.bulkPut(backup.budgets);
     for (const tx of backup.transactions) {
       const { id, ...txData } = tx;
-      void id; // strip auto-increment id
+      void id;
       const existing = await db.transactions
         .where('date').equals(tx.date)
         .filter(t => t.createdAt === tx.createdAt)

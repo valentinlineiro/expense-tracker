@@ -2,7 +2,7 @@ import { Component, inject, input, output, signal, computed, effect, OnInit } fr
 import { FormsModule } from '@angular/forms';
 import { StoreService } from '../../core/store.service';
 import { ToastService } from '../../core/toast.service';
-import { Transaction, Category, RecurringInterval } from '../../core/db';
+import { Transaction, Category, RecurringInterval, Wallet } from '../../core/db';
 import { today } from '../../core/utils';
 import { LocalizationService } from '../../core/localization.service';
 
@@ -128,7 +128,7 @@ import { LocalizationService } from '../../core/localization.service';
 
         <!-- Recurring -->
         <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">{{ localization.strings().transactionModal.recurring }}</p>
-        <div style="display:flex;gap:8px;margin-bottom:28px;">
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
           @for (opt of recurringOptions(); track opt.value) {
             <button
               (click)="recurring.set(opt.value)"
@@ -136,6 +136,34 @@ import { LocalizationService } from '../../core/localization.service';
             >{{ opt.label }}</button>
           }
         </div>
+
+        <!-- Recurring end date (only when repeating is active) -->
+        @if (recurring() !== 'none') {
+          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">{{ localization.strings().transactionModal.recurringEndDate }}</p>
+          <input
+            type="date"
+            [(ngModel)]="recurringEndDate"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;margin-bottom:16px;"
+          >
+        }
+
+        <!-- Wallet selector (only when multiple wallets exist) -->
+        @if (store.wallets().length > 1) {
+          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">{{ localization.strings().transactionModal.wallet }}</p>
+          <div style="display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px;">
+            @for (w of store.wallets(); track w.id) {
+              <button (click)="walletId.set(w.id!)" [style]="walletChipStyle(w)">
+                <span>{{ w.icon }}</span>
+                <span>{{ w.name }}</span>
+              </button>
+            }
+          </div>
+        }
+
+        <!-- Spacer when no wallet selector shown -->
+        @if (store.wallets().length <= 1 && recurring() === 'none') {
+          <div style="margin-bottom:12px;"></div>
+        }
 
         <!-- Save button -->
         <button
@@ -165,9 +193,11 @@ export class TransactionModalComponent implements OnInit {
   type = signal<'expense' | 'income'>('expense');
   amountStr = signal('');
   categoryId = signal('');
+  walletId = signal<number | null>(null);
   date = today();
   note = '';
   recurring = signal<RecurringInterval>('none');
+  recurringEndDate = '';
 
   readonly recurringOptions = computed((): { value: RecurringInterval; label: string }[] => {
     const labels = this.localization.strings().transactionModal.recurringOptions;
@@ -210,6 +240,8 @@ export class TransactionModalComponent implements OnInit {
       this.date = tx.date;
       this.note = tx.note;
       this.recurring.set(tx.recurring ?? 'none');
+      this.recurringEndDate = tx.recurringEndDate ?? '';
+      this.walletId.set(tx.walletId ?? this.defaultWalletId());
     } else if (src) {
       // Duplicate: copy fields but reset date to today and clear recurring
       this.type.set(src.type);
@@ -218,8 +250,16 @@ export class TransactionModalComponent implements OnInit {
       this.date = today();
       this.note = src.note;
       this.recurring.set('none');
+      this.walletId.set(src.walletId ?? this.defaultWalletId());
+    } else {
+      this.walletId.set(this.defaultWalletId());
     }
     // ensureCategory effect handles default selection using saved preference
+  }
+
+  private defaultWalletId(): number | null {
+    const wallets = this.store.wallets();
+    return wallets.length > 0 ? (wallets[0].id ?? null) : null;
   }
 
   async save(): Promise<void> {
@@ -227,16 +267,22 @@ export class TransactionModalComponent implements OnInit {
     this.saving.set(true);
     try {
       const amount = parseFloat(this.amountStr());
+      const wid = this.walletId();
+      const endDate = this.recurringEndDate || undefined;
       const tx = this.editTx();
       if (tx?.id != null) {
         await this.store.updateTransaction(tx.id, {
           amount, type: this.type(), categoryId: this.categoryId(),
           date: this.date, note: this.note, recurring: this.recurring(),
+          recurringEndDate: endDate,
+          ...(wid !== null ? { walletId: wid } : {}),
         });
       } else {
         await this.store.addTransaction({
           amount, type: this.type(), categoryId: this.categoryId(),
           date: this.date, note: this.note, recurring: this.recurring(),
+          recurringEndDate: endDate,
+          ...(wid !== null ? { walletId: wid } : {}),
         });
       }
       // Persist last-used category for this type
@@ -274,5 +320,12 @@ export class TransactionModalComponent implements OnInit {
 
   selectedCatStyle(cat: Category): string {
     return `background:${cat.color}22;border:1px solid ${cat.color};border-radius:10px;padding:10px 4px;cursor:pointer;text-align:center;color:var(--text);`;
+  }
+
+  walletChipStyle(wallet: Wallet): string {
+    const common = "display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;flex-shrink:0;";
+    return this.walletId() === wallet.id
+      ? `${common}border:1px solid ${wallet.color};background:${wallet.color}22;color:var(--text);`
+      : `${common}border:1px solid var(--border);background:none;color:var(--text-muted);`;
   }
 }

@@ -76,11 +76,47 @@ export interface TranslationCatalog {
       rate: string;
     };
   };
+  transactionModal: {
+    editTitle: string;
+    newTitle: string;
+    typeExpense: string;
+    typeIncome: string;
+    category: string;
+    date: string;
+    note: string;
+    notePlaceholder: string;
+    recurring: string;
+    recurringOptions: {
+      none: string;
+      daily: string;
+      weekly: string;
+      monthly: string;
+    };
+    recurringEndDate: string;
+    wallet: string;
+    save: string;
+    saving: string;
+    saveChanges: string;
+    saveError: string;
+  };
+  wallets: {
+    title: string;
+    addWallet: string;
+    namePlaceholder: string;
+    save: string;
+    deleteConfirm: string;
+    balance: string;
+    manageLink: string;
+    empty: string;
+    cannotDeleteLast: string;
+  };
   settings: {
     title: string;
     currency: string;
     save: string;
     saved: string;
+    wallets: string;
+    manageWallets: string;
     categories: string;
     newCategory: string;
     namePlaceholder: string;
@@ -107,27 +143,6 @@ export interface TranslationCatalog {
     cancel: string;
     confirmDelete: string;
     categoryDeleteConfirm: string;
-  };
-  transactionModal: {
-    editTitle: string;
-    newTitle: string;
-    typeExpense: string;
-    typeIncome: string;
-    category: string;
-    date: string;
-    note: string;
-    notePlaceholder: string;
-    recurring: string;
-    recurringOptions: {
-      none: string;
-      daily: string;
-      weekly: string;
-      monthly: string;
-    };
-    save: string;
-    saving: string;
-    saveChanges: string;
-    saveError: string;
   };
   transactionCard: {
     delete: string;
@@ -243,6 +258,8 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       currency: 'Moneda',
       save: 'Guardar',
       saved: '✓ Guardado',
+      wallets: 'Billeteras',
+      manageWallets: 'Gestionar billeteras →',
       categories: 'Categorías',
       newCategory: 'Nueva categoría',
       namePlaceholder: 'Nombre',
@@ -286,10 +303,23 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
         weekly: 'Semanal',
         monthly: 'Mensual',
       },
+      recurringEndDate: 'Fecha de fin (opcional)',
+      wallet: 'Billetera',
       save: 'Agregar',
       saving: 'Guardando…',
       saveChanges: 'Guardar cambios',
       saveError: 'No se pudo guardar la transacción. Inténtalo de nuevo.',
+    },
+    wallets: {
+      title: 'Billeteras',
+      addWallet: '+ Nueva billetera',
+      namePlaceholder: 'Nombre (ej. Efectivo)',
+      save: 'Guardar',
+      deleteConfirm: '¿Eliminar billetera "{name}"?',
+      balance: 'Saldo',
+      manageLink: 'Gestionar billeteras →',
+      empty: 'Sin billeteras',
+      cannotDeleteLast: 'No puedes eliminar la última billetera.',
     },
     transactionCard: {
       delete: '🗑 Eliminar',
@@ -403,6 +433,8 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       currency: 'Currency',
       save: 'Save',
       saved: '✓ Saved',
+      wallets: 'Wallets',
+      manageWallets: 'Manage wallets →',
       categories: 'Categories',
       newCategory: 'New category',
       namePlaceholder: 'Name',
@@ -446,10 +478,23 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
         weekly: 'Weekly',
         monthly: 'Monthly',
       },
+      recurringEndDate: 'End date (optional)',
+      wallet: 'Wallet',
       save: 'Add',
       saving: 'Saving…',
       saveChanges: 'Save changes',
       saveError: 'Could not save the transaction. Please try again.',
+    },
+    wallets: {
+      title: 'Wallets',
+      addWallet: '+ New wallet',
+      namePlaceholder: 'Name (e.g. Cash)',
+      save: 'Save',
+      deleteConfirm: 'Delete wallet "{name}"?',
+      balance: 'Balance',
+      manageLink: 'Manage wallets →',
+      empty: 'No wallets yet',
+      cannotDeleteLast: 'You cannot delete the last wallet.',
     },
     transactionCard: {
       delete: '🗑 Delete',

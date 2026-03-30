@@ -1,10 +1,11 @@
 import { Injectable, signal, computed } from '@angular/core';
 import {
-  Transaction, Category, Budget, RecurringInterval,
+  Transaction, Category, Budget, RecurringInterval, Wallet,
   addTransaction, updateTransaction, deleteTransaction,
   getAllCategories, addCategory, deleteCategory,
   getAllSettings, upsertSetting,
   getAllBudgets, upsertBudget, deleteBudget,
+  getAllWallets, addWallet, updateWallet, deleteWallet,
   getTransactionsByDate, getTransactionsByMonth, getTransactionsLast6Months, getAllTransactions,
   getRecurringTransactions,
 } from './db';
@@ -18,6 +19,7 @@ export class StoreService {
   readonly categories = signal<Category[]>([]);
   readonly settings = signal<Record<string, unknown>>({});
   readonly budgets = signal<Budget[]>([]);
+  readonly wallets = signal<Wallet[]>([]);
   readonly netBalance = signal(0);
 
   // Derived
@@ -42,16 +44,18 @@ export class StoreService {
   private recurringTimer?: ReturnType<typeof setTimeout>;
 
   async init(): Promise<void> {
-    const [txs, cats, settings, budgets] = await Promise.all([
+    const [txs, cats, settings, budgets, wallets] = await Promise.all([
       getTransactionsByDate(today()),
       getAllCategories(),
       getAllSettings(),
       getAllBudgets(),
+      getAllWallets(),
     ]);
     this.transactions.set(txs);
     this.categories.set(cats);
     this.settings.set(settings);
     this.budgets.set(budgets);
+    this.wallets.set(wallets);
 
     await this.refreshNetBalance();
     await this.checkRecurring();
@@ -83,6 +87,8 @@ export class StoreService {
           note: template.note,
           date,
           recurring: template.recurring as RecurringInterval,
+          recurringEndDate: template.recurringEndDate,
+          walletId: template.walletId,
         });
       }
     }
@@ -93,6 +99,7 @@ export class StoreService {
     const dates: string[] = [];
     let cursor = this.addInterval(new Date(template.date), template.recurring);
     while (cursor <= todayDate) {
+      if (template.recurringEndDate && toDateStr(cursor) > template.recurringEndDate) break;
       dates.push(toDateStr(cursor));
       cursor = this.addInterval(cursor, template.recurring);
     }
@@ -173,6 +180,27 @@ export class StoreService {
 
   getCategoryById(id: string): Category | undefined {
     return this.categories().find(c => c.id === id);
+  }
+
+  // ── Wallets ───────────────────────────────────────────────────────────────
+
+  async addWallet(data: Omit<Wallet, 'id' | 'createdAt'>): Promise<void> {
+    const id = await addWallet(data);
+    this.wallets.update(ws => [...ws, { ...data, id, createdAt: new Date().toISOString() }]);
+  }
+
+  async updateWallet(id: number, data: Partial<Omit<Wallet, 'id'>>): Promise<void> {
+    await updateWallet(id, data);
+    this.wallets.update(ws => ws.map(w => w.id === id ? { ...w, ...data } : w));
+  }
+
+  async deleteWallet(id: number): Promise<void> {
+    await deleteWallet(id);
+    this.wallets.update(ws => ws.filter(w => w.id !== id));
+  }
+
+  getWalletById(id: number): Wallet | undefined {
+    return this.wallets().find(w => w.id === id);
   }
 
   // ── Budgets ───────────────────────────────────────────────────────────────
