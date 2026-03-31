@@ -49,6 +49,7 @@ Personal expense tracker. Offline-first, no account, no backend — all data liv
 - Auto-generated insights: trend vs last month, top category, savings rate, projected monthly spend (current month only)
 
 ### Data Portability
+- **Import from bank CSV** — 3-step wizard: select bank preset (Santander, BBVA, ING, CaixaBank, N26, Revolut, or generic), map columns, preview rows, then import into any wallet
 - **Export to CSV** — all transactions including recurring field
 - **Import from CSV** — re-import a previously exported file; validates rows, matches categories by name
 - **Export to JSON** — full backup: transactions, categories, budgets, settings, and wallets (v2 format)
@@ -66,7 +67,7 @@ Personal expense tracker. Offline-first, no account, no backend — all data liv
 - `Esc` — close the modal or search overlay
 
 ### Multilingual
-- Spanish, English, French — switchable from Settings
+- Spanish, English — switchable from Settings
 - Dates and number formatting follow the selected locale
 
 ### PWA

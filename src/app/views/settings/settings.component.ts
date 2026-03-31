@@ -8,11 +8,12 @@ import { generateSlug, exportToCsv, PALETTE, EMOJI_PRESETS } from '../../core/ut
 import { exportAllData, importAllData, AppBackup } from '../../core/db';
 import { LocalizationService } from '../../core/localization.service';
 import { Language } from '../../core/locale-config';
+import { BankImportComponent } from '../../components/bank-import/bank-import.component';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, BankImportComponent],
   template: `
     <div style="padding:20px 16px 100px;">
       <h1 style="font-size:26px;margin-bottom:28px;">{{ localization.strings().settings.title }}</h1>
@@ -167,10 +168,19 @@ import { Language } from '../../core/locale-config';
         <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;">{{ localization.strings().settings.budgetsHint }}</p>
       </section>
 
+      <!-- Bank Import overlay -->
+      @if (showBankImport()) {
+        <app-bank-import (close)="showBankImport.set(false)" />
+      }
+
       <!-- Data: export + import -->
       <section style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;">
         <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px;">{{ localization.strings().settings.data }}</p>
         <div style="display:flex;flex-direction:column;gap:10px;">
+          <button
+            (click)="showBankImport.set(true)"
+            style="width:100%;background:var(--accent);border:none;border-radius:10px;padding:14px;color:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;"
+          >🏦 {{ localization.language() === 'es' ? 'Importar desde banco (CSV)' : 'Import from bank (CSV)' }}</button>
           <button
             (click)="exportCsv()"
             style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;"
@@ -237,6 +247,7 @@ export class SettingsComponent implements OnInit {
   iconPickerOpen = signal(false);
 
   confirmDelete = signal(false);
+  showBankImport = signal(false);
 
   emojiBtnStyle(emoji: string): string {
     const selected = this.newCatIcon === emoji;
