@@ -48,6 +48,25 @@ import { ToastService } from '../../core/toast.service';
         </div>
       </div>
 
+      <!-- ZBB "To Assign" card -->
+      @if (!loading() && store.zbbMode() && (totalIncome() > 0 || totalBudgeted() > 0)) {
+        <div style="background:var(--surface);border-radius:16px;padding:16px 20px;margin-bottom:20px;">
+          <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px;">{{ localization.strings().month.zbb.toAssign }}</p>
+          @if (toAssign() === 0) {
+            <div class="mono" style="font-size:22px;font-weight:600;color:var(--income);">{{ localization.strings().month.zbb.fullyBudgeted }}</div>
+          } @else if (toAssign() > 0) {
+            <div class="mono" style="font-size:22px;font-weight:600;color:#ffd166;">+{{ fmtAmount(toAssign(), store.currencySymbol()) }}</div>
+            <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0;">
+              {{ localization.interpolate(localization.strings().month.zbb.allocated, { allocated: fmtAmount(totalBudgeted(), store.currencySymbol()), income: fmtAmount(totalIncome(), store.currencySymbol()) }) }}
+            </p>
+          } @else {
+            <div class="mono" style="font-size:22px;font-weight:600;color:var(--expense);">
+              {{ localization.interpolate(localization.strings().month.zbb.overAllocated, { amount: fmtAmount(Math.abs(toAssign()), store.currencySymbol()) }) }}
+            </div>
+          }
+        </div>
+      }
+
       <!-- Budget progress bars -->
       @if (!loading() && budgetRows().length > 0) {
         <div style="background:var(--surface);border-radius:16px;padding:16px 20px;margin-bottom:20px;">
@@ -119,6 +138,7 @@ export class MonthComponent implements OnInit {
   readonly fmtAmount = fmtAmount;
   readonly fmtMonth = fmtMonth;
   readonly fmtDateShort = fmtDateShort;
+  readonly Math = Math;
   readonly localization = inject(LocalizationService);
   private readonly toast = inject(ToastService);
 
@@ -143,6 +163,11 @@ export class MonthComponent implements OnInit {
     this.transactions().filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   );
   balance = computed(() => this.totalIncome() - this.totalExpense());
+
+  totalBudgeted = computed(() =>
+    Array.from(this.store.budgetMap().values()).reduce((s, v) => s + v, 0)
+  );
+  toAssign = computed(() => this.totalIncome() - this.totalBudgeted());
 
   groupedByDay = computed(() => {
     const map = new Map<string, Transaction[]>();

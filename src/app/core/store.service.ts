@@ -38,6 +38,7 @@ export class StoreService {
   readonly budgetMap = computed(() =>
     new Map(this.budgets().map(b => [b.categoryId, b.monthlyLimit]))
   );
+  readonly zbbMode = computed(() => Boolean(this.settings()['zbbMode']));
 
   // ── Init ──────────────────────────────────────────────────────────────────
 

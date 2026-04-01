@@ -2,10 +2,10 @@ import { Component, inject, signal, computed, OnInit, effect, ElementRef, ViewCh
 import { StoreService } from '../../core/store.service';
 import { Transaction, getTransactionsByYear } from '../../core/db';
 import { fmtAmount, fmtMonth, fmtMonthShort, currentYearMonth } from '../../core/utils';
-import { Chart, DoughnutController, ArcElement, Tooltip, Legend, BarController, BarElement, CategoryScale, LinearScale } from 'chart.js';
+import { Chart, DoughnutController, ArcElement, Tooltip, Legend, BarController, BarElement, CategoryScale, LinearScale, LineController, LineElement, PointElement, Filler } from 'chart.js';
 import { LocalizationService } from '../../core/localization.service';
 
-Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, BarElement, CategoryScale, LinearScale);
+Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, BarElement, CategoryScale, LinearScale, LineController, LineElement, PointElement, Filler);
 
 @Component({
   selector: 'app-stats',
@@ -104,6 +104,19 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
           </div>
         </div>
 
+        <!-- Net Worth Over Time -->
+        @if (netWorthData().length >= 2) {
+          <div style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:20px;">
+            <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 4px;">
+              {{ localization.strings().stats.netWorth.title }}
+            </p>
+            <div class="mono" [style]="netWorthValueStyle()">
+              {{ store.netBalance() >= 0 ? '+' : '−' }}{{ fmtAmount(Math.abs(store.netBalance()), store.currencySymbol()) }}
+            </div>
+            <canvas #netWorthCanvas style="max-height:160px;margin-top:12px;"></canvas>
+          </div>
+        }
+
         <!-- Doughnut -->
         <div style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:20px;">
           <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">{{ donutTitle() }}</p>
@@ -178,6 +191,7 @@ Chart.register(DoughnutController, ArcElement, Tooltip, Legend, BarController, B
 export class StatsComponent implements OnInit {
   @ViewChild('donutCanvas') donutCanvasRef!: ElementRef<HTMLCanvasElement>;
   @ViewChild('barCanvas') barCanvasRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('netWorthCanvas') netWorthCanvasRef!: ElementRef<HTMLCanvasElement>;
 
   readonly store = inject(StoreService);
   readonly fmtAmount = fmtAmount;
@@ -215,11 +229,30 @@ export class StatsComponent implements OnInit {
   monthlyTransactions = signal<Transaction[]>([]);
   last6Transactions = signal<Transaction[]>([]);
   ytdTransactions = signal<Transaction[]>([]);
+  allTransactions = signal<Transaction[]>([]);
 
   totalTransactions = computed(() => this.last6Transactions().length);
 
+  netWorthData = computed(() => {
+    const txs = this.allTransactions();
+    if (txs.length === 0) return [];
+    const byMonth = new Map<string, number>();
+    for (const tx of txs) {
+      const month = tx.date.slice(0, 7);
+      byMonth.set(month, (byMonth.get(month) ?? 0) + (tx.type === 'income' ? tx.amount : -tx.amount));
+    }
+    const months = Array.from(byMonth.keys()).sort();
+    let cumulative = 0;
+    return months.map(month => {
+      cumulative += byMonth.get(month)!;
+      const [yr, mo] = month.split('-').map(Number);
+      return { label: fmtMonthShort(yr, mo), balance: Math.round(cumulative * 100) / 100 };
+    });
+  });
+
   private donutChart?: Chart;
   private barChart?: Chart;
+  private netWorthChart?: Chart;
   private readonly redrawCharts = effect(() => {
     this.localization.language();
     if (!this.loading()) {
@@ -396,6 +429,11 @@ export class StatsComponent implements OnInit {
     return `font-size:14px;font-weight:600;color:${color};`;
   }
 
+  netWorthValueStyle(): string {
+    const color = this.store.netBalance() >= 0 ? 'var(--income)' : 'var(--expense)';
+    return `font-size:22px;font-weight:600;color:${color};`;
+  }
+
   ytdRateStyle(): string {
     const r = this.ytdSavingsRate();
     const color = r === null ? 'var(--text-muted)' : r >= 0 ? 'var(--income)' : 'var(--expense)';
@@ -410,14 +448,16 @@ export class StatsComponent implements OnInit {
 
   async load(): Promise<void> {
     this.loading.set(true);
-    const [monthly, last6, ytd] = await Promise.all([
+    const [monthly, last6, ytd, all] = await Promise.all([
       this.store.getTransactionsByMonth(this.year(), this.month()),
       this.store.getTransactionsLast6Months(),
       getTransactionsByYear(this.year()),
+      this.store.getAllTransactions(),
     ]);
     this.monthlyTransactions.set(monthly);
     this.last6Transactions.set(last6);
     this.ytdTransactions.set(ytd);
+    this.allTransactions.set(all);
     this.loading.set(false);
     setTimeout(() => this.initCharts(), 0);
   }
@@ -425,6 +465,7 @@ export class StatsComponent implements OnInit {
   private initCharts(): void {
     this.initDonut();
     this.initBar();
+    this.initNetWorthChart();
   }
 
   private initDonut(): void {
@@ -440,6 +481,39 @@ export class StatsComponent implements OnInit {
         datasets: [{ data: data.map(d => d.amount), backgroundColor: data.map(d => d.color + 'cc'), borderColor: data.map(d => d.color), borderWidth: 1 }],
       },
       options: { cutout: '65%', plugins: { legend: { display: false }, tooltip: { enabled: true } } },
+    });
+  }
+
+  private initNetWorthChart(): void {
+    const canvas = this.netWorthCanvasRef?.nativeElement;
+    if (!canvas) return;
+    this.netWorthChart?.destroy();
+    const data = this.netWorthData();
+    if (data.length < 2) return;
+    const isPositive = data[data.length - 1].balance >= 0;
+    const lineColor = isPositive ? '#4dff91' : '#ff4d4d';
+    this.netWorthChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: data.map(d => d.label),
+        datasets: [{
+          data: data.map(d => d.balance),
+          borderColor: lineColor,
+          backgroundColor: isPositive ? '#4dff9118' : '#ff4d4d18',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3,
+          pointRadius: data.length > 24 ? 0 : 2,
+          pointHoverRadius: 4,
+        }],
+      },
+      options: {
+        scales: {
+          x: { ticks: { color: '#6b6b6b', maxTicksLimit: 8 }, grid: { color: '#2a2a2a' } },
+          y: { ticks: { color: '#6b6b6b' }, grid: { color: '#2a2a2a' } },
+        },
+        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+      },
     });
   }
 

@@ -33,6 +33,12 @@ export interface TranslationCatalog {
     budgetsTitle: string;
     loading: string;
     empty: string;
+    zbb: {
+      toAssign: string;
+      allocated: string;
+      fullyBudgeted: string;
+      overAllocated: string;
+    };
   };
   stats: {
     title: string;
@@ -74,6 +80,9 @@ export interface TranslationCatalog {
       expense: string;
       net: string;
       rate: string;
+    };
+    netWorth: {
+      title: string;
     };
   };
   transactionModal: {
@@ -128,6 +137,8 @@ export interface TranslationCatalog {
     addCategory: string;
     budgets: string;
     budgetsHint: string;
+    zbbMode: string;
+    zbbModeHint: string;
     data: string;
     exportCsv: string;
     importCsv: string;
@@ -210,6 +221,12 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       budgetsTitle: 'Presupuestos',
       loading: 'Cargando...',
       empty: 'Sin movimientos este mes',
+      zbb: {
+        toAssign: 'Por asignar',
+        allocated: '{allocated} asignado de {income} en ingresos',
+        fullyBudgeted: '¡Todo asignado!',
+        overAllocated: 'Sobre-asignado en {amount}',
+      },
     },
     stats: {
       title: 'Estadísticas',
@@ -252,6 +269,9 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
         net: 'Ahorro neto YTD',
         rate: 'Tasa de ahorro YTD',
       },
+      netWorth: {
+        title: 'Patrimonio neto — histórico',
+      },
     },
     settings: {
       title: 'Ajustes',
@@ -271,6 +291,8 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       addCategory: '+ Agregar',
       budgets: 'Presupuestos mensuales',
       budgetsHint: 'Deja vacío para sin límite. Se muestra como barra de progreso en la vista mensual.',
+      zbbMode: 'Presupuesto base cero',
+      zbbModeHint: 'Asigna tus ingresos a categorías antes de gastar',
       data: 'Datos',
       exportCsv: '📤 Exportar a CSV',
       importCsv: '📥 Importar desde CSV',
@@ -385,6 +407,12 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       budgetsTitle: 'Budgets',
       loading: 'Loading...',
       empty: 'No activity this month',
+      zbb: {
+        toAssign: 'To assign',
+        allocated: '{allocated} assigned of {income} income',
+        fullyBudgeted: 'Fully budgeted!',
+        overAllocated: 'Over-allocated by {amount}',
+      },
     },
     stats: {
       title: 'Statistics',
@@ -427,6 +455,9 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
         net: 'Net Savings YTD',
         rate: 'Savings Rate YTD',
       },
+      netWorth: {
+        title: 'Net worth — all time',
+      },
     },
     settings: {
       title: 'Settings',
@@ -446,6 +477,8 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       addCategory: '+ Add',
       budgets: 'Monthly budgets',
       budgetsHint: 'Leave empty for no limit. Shows as a progress bar on the month view.',
+      zbbMode: 'Zero-based budgeting',
+      zbbModeHint: 'Assign your income to categories before spending it',
       data: 'Data',
       exportCsv: '📤 Export to CSV',
       importCsv: '📥 Import from CSV',

@@ -147,6 +147,16 @@ import { BankImportComponent } from '../../components/bank-import/bank-import.co
       <!-- Budgets -->
       <section style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;">
         <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;">{{ localization.strings().settings.budgets }}</p>
+
+        <!-- ZBB toggle -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+          <div>
+            <span style="font-size:14px;display:block;">{{ localization.strings().settings.zbbMode }}</span>
+            <span style="font-size:11px;color:var(--text-muted);">{{ localization.strings().settings.zbbModeHint }}</span>
+          </div>
+          <button (click)="toggleZbb()" [style]="zbbToggleStyle()">{{ store.zbbMode() ? 'ON' : 'OFF' }}</button>
+        </div>
+
         @for (cat of store.expenseCategories(); track cat.id) {
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
             <div [style]="'width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;background:' + cat.color + '22;flex-shrink:0;'">{{ cat.icon }}</div>
@@ -374,6 +384,15 @@ export class SettingsComponent implements OnInit {
     }
     cols.push(current);
     return cols;
+  }
+
+  async toggleZbb(): Promise<void> {
+    await this.store.updateSetting('zbbMode', !this.store.zbbMode());
+  }
+
+  zbbToggleStyle(): string {
+    const on = this.store.zbbMode();
+    return `background:${on ? 'var(--accent)' : 'var(--surface2)'};border:1px solid ${on ? 'var(--accent)' : 'var(--border)'};color:${on ? '#fff' : 'var(--text-muted)'};border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;min-width:52px;`;
   }
 
   async onBudgetChange(categoryId: string, event: Event): Promise<void> {
