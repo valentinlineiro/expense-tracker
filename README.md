@@ -40,16 +40,37 @@ Personal expense tracker. Offline-first, no account, no backend — all data liv
 - Set a monthly spending limit per category in Settings
 - Month view shows a progress bar per category — turns orange above 80%, red above 100%
 
+### Zero-Based Budgeting
+- Toggle on/off in Settings → Monthly budgets
+- When enabled, a **"To Assign"** card appears above the budget rows in Month view
+- Shows: income this month − total budget allocations
+- Yellow when money remains unassigned, green when exactly zero (fully budgeted), red when over-allocated
+- Works alongside existing budget limits — same inputs, new framing
+
 ### Statistics & Insights
 - KPI cards: savings rate, average daily spend, month-over-month delta
 - **Month navigation** — browse past months with ‹ › arrows; all KPIs and charts update accordingly
 - **Year-to-date summary** — income YTD, expenses YTD, net savings YTD, savings rate YTD
+- **Net worth timeline** — all-time cumulative balance line chart; green line when net worth is positive, red when negative; auto-hides points for long histories
 - Doughnut chart: expenses by category for the selected month
 - Bar chart: income vs expenses for the last 6 months relative to the selected month
 - Auto-generated insights: trend vs last month, top category, savings rate, projected monthly spend (current month only)
 
+### Bank Import
+- **Accepts CSV, XLS, and XLSX** — file type detected automatically from extension; XLS/XLSX parsed via SheetJS (lazy-loaded, not in the initial bundle)
+- **Auto-detects bank format** — after loading a file, column headers are matched against known presets; if ≥2 hints match, the bank is identified and a green badge appears; column mapping is pre-filled automatically
+- Supported presets: Santander, BBVA, ING, CaixaBank, N26, Revolut, Generic
+- 3-step wizard: file + bank → column mapping → preview & import into any wallet
+- Manual override: bank dropdown and all column/format selectors remain editable
+
+### Shared Expenses
+- **No server required** — P2P via a plain `.json` file sent through any channel (WhatsApp, email, AirDrop)
+- **Export**: pick a month, optionally enter your name, download `split-YYYY-MM.json` containing your expenses for that period
+- **Import**: load the other person's split file; the app fetches your own expenses for the same period from local storage and computes the settlement
+- Settlement card shows: their total / your total / combined / each should pay / **balance verdict** (who owes whom and how much)
+- Optional **"Add their expenses to my tracker"** — imports their transactions prefixed with `[Name]` into your own DB
+
 ### Data Portability
-- **Import from bank CSV** — 3-step wizard: select bank preset (Santander, BBVA, ING, CaixaBank, N26, Revolut, or generic), map columns, preview rows, then import into any wallet
 - **Export to CSV** — all transactions including recurring field
 - **Import from CSV** — re-import a previously exported file; validates rows, matches categories by name
 - **Export to JSON** — full backup: transactions, categories, budgets, settings, and wallets (v2 format)
@@ -84,6 +105,7 @@ Personal expense tracker. Offline-first, no account, no backend — all data liv
 | Charts | Chart.js |
 | Styles | Tailwind CSS v4 + inline styles |
 | Dates | date-fns |
+| XLS parsing | SheetJS (`xlsx`) — dynamic import, lazy chunk |
 | PWA | @angular/pwa |
 | Deploy | GitHub Pages via GitHub Actions |
 

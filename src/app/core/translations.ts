@@ -139,6 +139,7 @@ export interface TranslationCatalog {
     budgetsHint: string;
     zbbMode: string;
     zbbModeHint: string;
+    splitBtn: string;
     data: string;
     exportCsv: string;
     importCsv: string;
@@ -293,6 +294,7 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       budgetsHint: 'Deja vacío para sin límite. Se muestra como barra de progreso en la vista mensual.',
       zbbMode: 'Presupuesto base cero',
       zbbModeHint: 'Asigna tus ingresos a categorías antes de gastar',
+      splitBtn: '🤝 Gastos compartidos',
       data: 'Datos',
       exportCsv: '📤 Exportar a CSV',
       importCsv: '📥 Importar desde CSV',
@@ -479,6 +481,7 @@ const TRANSLATIONS: Record<Language, TranslationCatalog> = {
       budgetsHint: 'Leave empty for no limit. Shows as a progress bar on the month view.',
       zbbMode: 'Zero-based budgeting',
       zbbModeHint: 'Assign your income to categories before spending it',
+      splitBtn: '🤝 Shared expenses',
       data: 'Data',
       exportCsv: '📤 Export to CSV',
       importCsv: '📥 Import from CSV',

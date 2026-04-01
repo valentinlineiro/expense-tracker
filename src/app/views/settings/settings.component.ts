@@ -9,11 +9,12 @@ import { exportAllData, importAllData, AppBackup } from '../../core/db';
 import { LocalizationService } from '../../core/localization.service';
 import { Language } from '../../core/locale-config';
 import { BankImportComponent } from '../../components/bank-import/bank-import.component';
+import { SplitComponent } from '../../components/split/split.component';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [FormsModule, BankImportComponent],
+  imports: [FormsModule, BankImportComponent, SplitComponent],
   template: `
     <div style="padding:20px 16px 100px;">
       <h1 style="font-size:26px;margin-bottom:28px;">{{ localization.strings().settings.title }}</h1>
@@ -183,6 +184,11 @@ import { BankImportComponent } from '../../components/bank-import/bank-import.co
         <app-bank-import (close)="showBankImport.set(false)" />
       }
 
+      <!-- Split overlay -->
+      @if (showSplit()) {
+        <app-split (close)="showSplit.set(false)" />
+      }
+
       <!-- Data: export + import -->
       <section style="background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;">
         <p style="color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px;">{{ localization.strings().settings.data }}</p>
@@ -191,6 +197,10 @@ import { BankImportComponent } from '../../components/bank-import/bank-import.co
             (click)="showBankImport.set(true)"
             style="width:100%;background:var(--accent);border:none;border-radius:10px;padding:14px;color:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;"
           >🏦 {{ localization.language() === 'es' ? 'Importar desde banco (CSV)' : 'Import from bank (CSV)' }}</button>
+          <button
+            (click)="showSplit.set(true)"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;"
+          >{{ localization.strings().settings.splitBtn }}</button>
           <button
             (click)="exportCsv()"
             style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;"
@@ -258,6 +268,7 @@ export class SettingsComponent implements OnInit {
 
   confirmDelete = signal(false);
   showBankImport = signal(false);
+  showSplit = signal(false);
 
   emojiBtnStyle(emoji: string): string {
     const selected = this.newCatIcon === emoji;

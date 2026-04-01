@@ -13,6 +13,7 @@ Personal expense tracker. Offline-first PWA — no backend, no account, all data
 | Charts | Chart.js |
 | Styles | Tailwind CSS v4 + inline styles |
 | Dates | date-fns |
+| XLS parsing | SheetJS (`xlsx`) — dynamic import, lazy chunk only |
 | PWA | @angular/pwa |
 | Deploy | GitHub Pages via GitHub Actions |
 
@@ -37,12 +38,13 @@ src/app/
 │   ├── search-overlay/       # Full-screen search
 │   ├── category-badge/
 │   ├── amount-display/
-│   └── bank-import/          # 3-step wizard for importing bank CSV files
+│   ├── bank-import/          # 3-step wizard: CSV/XLS/XLSX → auto-detect bank → column map → import
+│   └── split/                # Shared expenses: export split JSON + import + settlement calculator
 └── views/
     ├── today/                # Daily balance + transaction list
-    ├── month/                # Monthly summary, budgets, pull-to-refresh
-    ├── stats/                # Charts, KPIs, insights
-    ├── settings/             # Currency, language, categories, budgets, data import/export
+    ├── month/                # Monthly summary, budgets, ZBB "To Assign" card, pull-to-refresh
+    ├── stats/                # Charts, KPIs, insights, net worth timeline
+    ├── settings/             # Currency, language, categories, budgets, ZBB toggle, data import/export
     └── wallets/              # Wallet CRUD
 ```
 
@@ -53,8 +55,10 @@ src/app/
 - **Standalone components** — every component is standalone. Add imports to the component's `imports: []` array, not to a module.
 - **No backend** — never add server-side logic. All persistence goes through Dexie (`src/app/core/db.ts`).
 - **DB schema changes** — increment the Dexie version and add an `.upgrade()` migration. Never mutate existing version definitions.
-- **Translations** — any user-facing string must be added to `TranslationCatalog` in `translations.ts` and filled in for both `es` and `en`.
+- **Translations** — any user-facing string must be added to `TranslationCatalog` in `translations.ts` and filled in for both `es` and `en`. Exception: overlay components that inline a `t()` computed (e.g. `bank-import`, `split`) may keep their strings local.
 - **Toast feedback** — use `ToastService.show()` for success, `.error()` for failures.
+- **Settings flags** — boolean feature flags (e.g. `zbbMode`) are stored as `Setting` rows via `store.updateSetting(key, value)` and exposed as `computed()` on the store. No schema change needed.
+- **Overlays** — bottom-sheet overlays follow the `BankImportComponent` pattern: fixed backdrop + sheet div, `output<void>() close`, triggered by a `signal(false)` in the parent view.
 
 ## Data model (db.ts)
 
@@ -87,11 +91,14 @@ npx angular-cli-ghpages --dir=dist/expense-tracker/browser
 ## Features at a glance
 
 - Global balance, Today view, Month view, Stats (KPIs + charts + insights + YTD)
+- **Net worth timeline** — all-time cumulative balance line chart in Stats; green/red based on current sign
 - Wallets — multiple wallets, per-wallet balance, DB migration for existing users
 - Transactions — add/edit/delete/duplicate, recurring (daily/weekly/monthly), undo delete
 - Search — full-screen overlay, searches note + category + amount, debounced
 - Budgets — monthly limit per category, progress bar in month view
-- Bank CSV import — 3-step wizard (preset → column mapping → preview), supports Santander / BBVA / ING / CaixaBank / N26 / Revolut / generic
+- **Zero-based budgeting (ZBB)** — toggle in Settings; "To Assign" card in Month view shows income minus total allocations; three states: unassigned (yellow), balanced (green), over-allocated (red)
+- **Bank file import** — 3-step wizard; accepts CSV, XLS, XLSX; auto-detects bank format from column headers (Santander / BBVA / ING / CaixaBank / N26 / Revolut); falls back to manual mapping
+- **Shared expenses** — export a month's expenses as a split JSON file; recipient imports it, app fetches their own data for the same period and shows the settlement (who owes whom and how much); optional "add their transactions" button
 - Data portability — export/import CSV + JSON backup
 - Offline banner, pull-to-refresh, haptic feedback, keyboard shortcuts (`N`, `Esc`)
 - Bilingual: Spanish + English

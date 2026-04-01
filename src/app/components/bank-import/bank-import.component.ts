@@ -85,9 +85,20 @@ interface ParsedRow {
                   <p style="margin:4px 0 0;font-size:12px;color:var(--income);">{{ dataRows().length }} {{ t().rowsFound }}</p>
                 }
               </div>
-              <input type="file" accept=".csv,.txt" (change)="onFileChange($event)" style="display:none;">
+              <input type="file" accept=".csv,.xls,.xlsx,.txt" (change)="onFileChange($event)" style="display:none;">
             </label>
           </div>
+
+          <!-- Auto-detection badge -->
+          @if (detectedPreset()) {
+            <div style="display:flex;align-items:center;gap:8px;background:var(--income)18;border:1px solid var(--income)44;border-radius:10px;padding:10px 14px;margin-bottom:16px;">
+              <span style="font-size:16px;">✓</span>
+              <div>
+                <span style="font-size:13px;color:var(--income);font-weight:600;">{{ t().detected }}</span>
+                <span style="font-size:13px;color:var(--income);"> — {{ isEs() ? detectedPreset()!.nameEs : detectedPreset()!.nameEn }}</span>
+              </div>
+            </div>
+          }
 
           <!-- Bank preset -->
           <div style="margin-bottom:16px;">
@@ -331,8 +342,10 @@ export class BankImportComponent {
   // ── Step 1 state ──────────────────────────────────────────────────────────
   readonly fileName = signal('');
   readonly rawText = signal('');
+  readonly rawXlsRows = signal<string[][]>([]); // pre-parsed rows from XLS/XLSX
   readonly headers = signal<string[]>([]);
   readonly dataRows = signal<string[][]>([]);
+  readonly detectedPreset = signal<BankPreset | null>(null);
 
   selectedPresetId = 'generic';
   separatorChoice = 'auto';
@@ -365,10 +378,11 @@ export class BankImportComponent {
         es ? 'Paso 2 de 3 — Mapeo de columnas' : 'Step 2 of 3 — Column mapping',
         es ? 'Paso 3 de 3 — Vista previa e importar' : 'Step 3 of 3 — Preview & import',
       ],
-      uploadLabel: es ? 'Archivo CSV' : 'CSV File',
-      chooseFile: es ? 'Seleccionar archivo CSV...' : 'Choose a CSV file...',
+      uploadLabel: es ? 'Archivo CSV / XLS / XLSX' : 'CSV / XLS / XLSX File',
+      chooseFile: es ? 'Seleccionar archivo...' : 'Choose a file...',
       rowsFound: es ? 'filas detectadas' : 'rows detected',
       bankLabel: es ? 'Banco / Formato' : 'Bank / Format',
+      detected: es ? 'Banco detectado automáticamente' : 'Bank detected automatically',
       separatorLabel: es ? 'Separador' : 'Separator',
       separatorAuto: es ? 'Auto-detectar' : 'Auto-detect',
       skipRowsLabel: es ? 'Filas a omitir al inicio' : 'Rows to skip at top',
@@ -435,15 +449,43 @@ export class BankImportComponent {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
     this.fileName.set(file.name);
-    const text = await file.text();
-    this.rawText.set(text);
-    this.reparseWithSettings();
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (ext === 'xls' || ext === 'xlsx') {
+      await this.handleXlsFile(file);
+    } else {
+      this.rawXlsRows.set([]);
+      const text = await file.text();
+      this.rawText.set(text);
+      this.reparseWithSettings();
+    }
     (event.target as HTMLInputElement).value = '';
+  }
+
+  private async handleXlsFile(file: File): Promise<void> {
+    try {
+      const XLSX = await import('xlsx');
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa: string[][] = (XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, raw: false, defval: '' }) as string[][])
+        .map(row => row.map(String))
+        .filter(row => row.some(c => c.trim() !== ''));
+      this.rawText.set('');
+      this.rawXlsRows.set(aoa);
+      this.reparseWithSettings();
+    } catch {
+      const msg = this.isEs()
+        ? 'No se pudo leer el archivo XLS. Prueba a exportar como CSV.'
+        : 'Could not read the XLS file. Try exporting as CSV.';
+      this.toast.error(msg);
+    }
   }
 
   onPresetChange(presetId: string): void {
     const preset = PRESETS.find(p => p.id === presetId);
     if (!preset) return;
+    // User manually changed — clear auto-detection badge unless they picked the same preset
+    if (this.detectedPreset()?.id !== presetId) this.detectedPreset.set(null);
     if (preset.separator !== 'auto') this.separatorChoice = preset.separator;
     else this.separatorChoice = 'auto';
     this.skipRows = preset.skipRows;
@@ -458,7 +500,28 @@ export class BankImportComponent {
   }
 
   reparseWithSettings(): void {
-    const text = this.rawText();
+    const xlsRows = this.rawXlsRows();
+    if (xlsRows.length > 0) {
+      this.reparseFromXlsRows(xlsRows);
+    } else {
+      this.reparseFromText(this.rawText());
+    }
+  }
+
+  private reparseFromXlsRows(allRows: string[][]): void {
+    const skipCount = Math.max(0, this.skipRows);
+    if (allRows.length <= skipCount) {
+      this.headers.set([]);
+      this.dataRows.set([]);
+      return;
+    }
+    const parsedHeaders = allRows[skipCount];
+    this.headers.set(parsedHeaders);
+    this.dataRows.set(allRows.slice(skipCount + 1));
+    this.tryAutoDetect(parsedHeaders);
+  }
+
+  private reparseFromText(text: string): void {
     if (!text) return;
     const sep = this.detectSeparator(text);
     const allLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
@@ -471,15 +534,31 @@ export class BankImportComponent {
     const headerLine = allLines[skipCount];
     const parsedHeaders = this.splitLine(headerLine, sep);
     this.headers.set(parsedHeaders);
+    this.dataRows.set(allLines.slice(skipCount + 1).map(l => this.splitLine(l, sep)));
+    this.tryAutoDetect(parsedHeaders);
+  }
 
-    const rows = allLines.slice(skipCount + 1).map(l => this.splitLine(l, sep));
-    this.dataRows.set(rows);
-
-    // Auto-select columns based on preset hints
-    const preset = PRESETS.find(p => p.id === this.selectedPresetId);
-    if (preset) {
-      this.autoSelectColumns(parsedHeaders, preset);
+  private tryAutoDetect(headers: string[]): void {
+    const lower = headers.map(h => h.toLowerCase());
+    for (const preset of PRESETS.filter(p => p.id !== 'generic')) {
+      const hints = [preset.dateColHint, preset.descColHint, preset.amountColHint]
+        .filter(Boolean)
+        .map(h => h.toLowerCase());
+      if (hints.length >= 2 && hints.every(hint => lower.some(h => h.includes(hint)))) {
+        this.detectedPreset.set(preset);
+        this.selectedPresetId = preset.id;
+        if (preset.separator !== 'auto') this.separatorChoice = preset.separator;
+        this.dateFormatChoice = preset.dateFormat;
+        this.amountFormatChoice = preset.amountFormat;
+        this.negativeIsExpense = preset.negativeIsExpense;
+        this.autoSelectColumns(headers, preset);
+        return;
+      }
     }
+    this.detectedPreset.set(null);
+    // Still auto-select columns if a preset was manually chosen
+    const preset = PRESETS.find(p => p.id === this.selectedPresetId);
+    if (preset) this.autoSelectColumns(headers, preset);
   }
 
   private autoSelectColumns(headers: string[], preset: BankPreset): void {
