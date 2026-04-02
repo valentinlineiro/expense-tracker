@@ -6,7 +6,9 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "deploy": "npm run build && wrangler deploy",
+    "preview": "npm run build && wrangler dev"
   },
   "private": true,
   "dependencies": {
@@ -43,6 +45,7 @@
     "postcss": "^8.5.8",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.2.2",
-    "typescript": "~5.7.2"
+    "typescript": "~5.7.2",
+    "wrangler": "^4.79.0"
   }
 }
